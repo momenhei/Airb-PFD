@@ -1,0 +1,94 @@
+% Mit \section{...} eröffnen wir einen neuen Abschnitt.
+% Der Befehl setzt nicht nur den Text in einer größeren,
+% fetten Schrift, sondern sorgt außerdem dafür, daß er im
+% Inhaltsverzeichnis erscheint.
+%
+% Mit \label{...} erzeugen wir einen Bezeichner, mit dessen Hilfe
+% wir später auf die Nummer des Abschnitts verweisen können (nämlich
+% mit \ref{...}).
+%
+% Das Kommentarzeichen hinter „Übersicht“ dient dazu, ein
+% Leerzeichen zwischen „Übersicht“ und dem \label-Befehl
+% zu vermeiden, das andernfalls sichtbar würde – z.B. im
+% Inhaltsverzeichnis.
+%
+\section{Einleitende Übersicht%
+         \label{sec:Einleitung}}
+
+Diese Vorlage ist dazu gedacht,
+den Einstieg in das Schreiben von größeren wissenschaftlichen Dokumenten
+mit Hilfe von \LaTeX{} zu erleichtern,
+insbesondere z.\,B.~für eine Bachelorarbeit
+  % Zwischen einbuchstabigen Abkürzungen verwendet man halbe Leerzeichen,
+  % die man in LaTeX mit dem Befehl „\,“ (Backslash und Komma) erzeugt.
+  % Der Punkt nach der Abkürzung soll nicht mit einem Punkt am Ende
+  % des Satzes verwechselt werden, daher verwenden wir hierfür entweder 
+  % „\ “ (Backslash und Leerzeichen) oder „~“ (Tilde). Ersteres erlaubt
+  % einen Zeilenumbruch an diesem Leerzeichen, letzteres nicht. In diesem 
+  % konkreten Beispiel bewirkt also die Tilde, daß das „z.B.“ nicht am
+  % Ende der Zeile stehen darf.
+am Campus Velbert-Heiligenhaus (CVH) der Hochschule Bochum (HS Bochum). 
+Die erste Version ist durch Jan Weber erarbeitet worden.
+Ihm gebührt der Dank für den größten Arbeitsanteil an dieser Dokumentationsvorlage.
+Die Überarbeitung der ersten Version erfolgte durch Markus Lemmen und Peter Gerwinski. 
+
+Um ein derartiges Ziel erreichen zu können,
+liefert die vorliegende Arbeit de facto eine Vorlage
+für beliebige am CVH zu erstellende wissenschaftliche Ausarbeitungen. 
+Für andere Arbeiten als die hier ausschließlich ausgeführte
+Vorlage einer Bachelorarbeit sind verschiedene Details abzuändern
+wie z.\,B.\ das Deckblatt. 
+Die eigentliche Struktur einer Arbeit kann jedoch bestehen bleiben,
+wie auch die grundlegende Struktur einer wissenschaftlichen Ausarbeitung in 
+
+\begin{enumerate}
+  \item Einleitende Übersicht, 
+  \item Grundlagen, 
+  \item Konzeption, 
+  \item Prototypische Implementierung mit eventueller Diskussion sowie
+  \item Zusammenfassung und Ausblick. 
+\end{enumerate}
+
+Neben der Bereitstellung einer derartigen Strukturierung von
+wissenschaftlichen Arbeiten verfolgt die vorliegende Dokumentation
+auch das Ziel, Beispiele für den Gebrauch und die Anwendung von
+\LaTeX\ innerhalb dieser Struktur zu geben und so die Nutzung des
+Textsatzsystems \LaTeX\ zu erleichtern und entsprechende Hürden
+abzubauen. 
+Eine umfassende Einleitung in \LaTeX\ oder das wissenschaftliche
+Schreiben kann diese Vorlage jedoch nicht geben. 
+In diesem Zusammenhang sei auf die vielen Quellen im Internet,
+Büchern und auch auf die entsprechenden Kurse am Campus verwiesen. 
+
+Dementsprechend gliedert sich die vorliegende Arbeit wie folgt: 
+Im Anschluss an diese einleitende Übersicht im
+Abschnitt~\ref{sec:Einleitung} folgt die Darstellung der wichtigsten
+  % \ref{...}: Hier verwenden wir den oben definierten \label{...}.
+\LaTeX\ Befehle und Umgebungen in Abschnitt \ref{sec:LaTeX-Beispiele}
+  % Dieser Label wird erst im nächsten Abschnitt definiert.
+  % LaTeX löst diese Vorwärts-Definition durch das Anlegen
+  % temporärer Dateien auf, die beim nächsten Compilieren
+  % eingebunden werden. Dies ist der Grund, weshalb Referenzen
+  % gelegentlich erst nach mehrfachem Compilieren korrekt sind.
+mit Hilfe vieler konkreter Beispielen.
+Nach einer knappen Zusammenfassung des Compilierens in Abschnitt~\ref{sec:Compilieren}
+und einem Exkurs in die Strukturierung in Abschnitte in Abschnitt~\ref{sec:Abschnitte}
+gibt Abschnitt~\ref{sec:Bilder-Tabellen} einen ersten Einblick,
+wie mit Hilfe von Umgebungen Bilder und Tabellen generell
+bzw.\ in Abschnitt~\ref{sec:Bilder}
+  % Auch der Punkt hinter der Abkürzung „bzw.“ ist kein Punkt am
+  % Ende des Satzes – daher das „\ “ (Backslash und Leerzeichen).
+  % Die Tilde „~“ wirkt genauso, verbietet aber einen Zeilenumbruch
+  % an dieser Stelle, daher steht sie zwischen „Abschnitt“ und der
+  % Referenz: Wir wollen nicht, daß „Abschnitt“ als letztes Wort in
+  % der Zeile steht und die Referenz (eine Zahl) in der nächsten
+  % Zeile.
+spezielle Anordnungen von Bildern anzuordnen sind.
+Abschnitt~\ref{sec:Tabellen} erklärt Tabellen,
+Abschnitt~\ref{sec:Gleichungen} zeigt Gleichungen,
+und Abschnitt~\ref{sec:Nomenklatur} veranschaulicht Einträge in die Nomenklatur,
+häufig auch „Formelzeichen und Bezeichnungen“ genannt.
+Eine Zusammenfassung und einen Ausblick schließen diese Arbeit in
+Abschnitt~\ref{sec:zusammen} ab. Eventuell noch benötigte Anhänge
+finden sich in den Anhängen \ref{anh:fertigungszeichnungen} bis
+\ref{anh:datenblaetter}. 

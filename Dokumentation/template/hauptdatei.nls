@@ -1,0 +1,13 @@
+\begin{thenomenclature} 
+
+ \nomgroup{A}
+
+  \item [{PWM}]\begingroup Pulsweitenmodulation\nomeqref {3.3}
+		\nompageref{8}
+
+ \nomgroup{S}
+
+  \item [{$\pi$}]\begingroup Kreis-Konstante\nomeqref {3.3}
+		\nompageref{8}
+
+\end{thenomenclature}

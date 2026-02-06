@@ -1,0 +1,476 @@
+% Willkommen im Quelltext. :-)
+%
+% Diese „Bachelor-Arbeit“ wurde mit LaTeX erstellt. Sie kann sowohl
+% als Vorlage für Ihre eigene Bachelor-Arbeit verwendet werden als
+% auch als Einführung in das Arbeiten mit LaTeX.
+
+% Lizenz: @@@ Tja ... CC-0? CC-BY-SA?
+
+% Im Gegensatz zu What-You-See-Is-What-You-Get- (WYSIWYG-) Systemen
+% wie z.B. Textverarbeitungsprogrammen im Office-Bereich, unterscheidet
+% LaTeX zwei Versionen des Dokuments: den Quelltext und das compilierte
+% Dokument.
+%
+%  * Der Quelltext ist diejenige Version, die man bearbeitet.
+%    Dies geschieht mit einem beliebigen Texteditor, mit dem man
+%    auch Computerprogramme schreiben würde. Die LaTeX-Sprache ist
+%    eine Markup-Sprache – vergleichbar mit XML oder HTML –, stellt
+%    dabei aber mächtigere Werkzeuge zur Verfügung bis hin zu echter
+%    Programmierung (Verzweigungen, Schleifen).
+%
+%  * Durch Compilieren entsteht aus dem Quelltext das druckreife
+%    Dokument – typischerweise eine PDF-Datei oder PostScript.
+%    Für das vorliegende Dokument geschieht dies durch den Aufruf
+%    „pdflatex hauptdatei.tex“ auf der Kommandozeile oder über einen
+%    Menüpunkt.
+%
+% Dieses Dokument enthält zahl- und umfangreiche Kommentare (z.B.
+% diesen), die eine kleine Einführung in die Arbeit mit LaTeX geben
+% sollen. Kommentare werden mit einem Prozentzeichen eingeleitet und
+% gehen jeweils bis zum Zeilenende.
+%
+% „Befehle“ (genauer: „Macros“) werden in LaTeX typischerweise
+% durch einen Backslash eingeleitet und können daher zwischen dem
+% eigentlichen Text stehen. Dennoch beginnt ein LaTeX-Dokument nicht
+% direkt mit dem Text, sondern es hat einen Vorspann, in dem man
+% Pakete einbinden und eigene Macros definieren kann.
+
+% Die \documentclass-Zeile ist in der Regel die erste Zeile eines
+% LaTeX-Dokuments. Sie definiert das allgemeine Dokumentenformat:
+% Artikel, Bericht (mehrere Kapitel), Buch, Brief usw. Für eine
+% Bachelor-Arbeit eignen sich Artikel- und Bericht-Formate. In
+% diesem Beispiel verwenden wir das KOMA-Artikel-Format „scrartcl“;
+% das entsprechende Bericht-Format heißt „scrreprt“.
+%
+% Die Optionen [in eckigen Klammern] bedeuten: Verwende A4-Papier,
+% setze Gleichungen linksbündig stat zentriert, verwende 12-Punkt-
+% statt 11-Punkt-Schrift, trenne die Kopfzeile durch einen
+% horizontalen Strich vom Text.
+%
+\documentclass[a4paper,fleqn,12pt,headsepline]{scrartcl}
+
+% Mit \usepackage bindet man Sammlungen nützlicher Befehle,
+% sog. Pakete ein. Das graphicx-Paket stellt z.B. einen Befehl
+% \includegraphics zur Verfügung, mit dem man (bei Verwendung von
+% PDFLaTeX) Grafiken im PDF-, PNG- oder JPG-Format einbinden kann.
+%
+\usepackage{graphicx}
+
+% Umlaute und sonstige Sonderzeichen als UTF-8 direkt eingeben
+\usepackage[utf8]{inputenc}
+
+% Sprachpaket „reformierte deutsche Rechtschreibung“ einbinden
+% (u.a. für Trennungen)
+%\usepackage[ngerman]{babel}	% Für Englische Berichte ausqwählen und auskommentieren
+\usepackage[english]{babel} 		% Für Englische Berichte ausqwählen und auskommentieren
+
+% Zeichensätze und Zeichensatzkodierung auswählen
+%
+% Unten sind verschiedene Möglichkeiten aufgeführt, aber nur eine
+% wird tatsächlich verwendet. Die anderen sind „auskommentiert“;
+% um diese auszuprobieren, genügt es, Kommentarzeichen zu verschieben.
+%
+\usepackage[T1]{fontenc}
+%
+%\usepackage{fix-cm} % Standard-Schriftfamilie “Computer Modern” in einer flexibleren Variante verwenden
+\usepackage{lmodern} % Schriftfamilie „Latin Modern“ (Erweiterung von „Computer Modern“) verwenden
+%\usepackage{droid} % Schriftfamilie „Droid“ verwenden
+%\usepackage{times} % „Times New Roman” als Serifenschrift verwenden
+%\usepackage{librebaskerville} % „Libre Baskerville” als Serifenschrift verwenden
+%\usepackage{libertine} % „Linux Libertine” als Serifenschrift verwenden
+%\usepackage{fourier} % „Utopia Regular” als Serifenschrift verwenden
+%\usepackage{fouriernc} % „New Century Schoolbook” als Serifenschrift verwenden
+%\usepackage{tgschola} % „TeX Gyre Schola” als Serifenschrift verwenden
+%\usepackage[scaled=0.95]{helvet} % leicht verkleinerte „Helvetica“ als Sans-Serif-Schrift verwenden
+%
+% Sans-Serif-Schrift als Standardschrift benutzen
+%\renewcommand*\familydefault{\sfdefault}
+
+% Wenn man Anführungszeichen unten und oben nicht von Hand eingeben
+% will oder kann (z.B. „Test“), ermöglicht das csquotes-Paket u.a.,
+% stattdessen \enquote{Test} zu schreiben.
+%
+%\usepackage[babel,german=quotes]{csquotes}	% Nur für deutsche berichte einkommentieren
+% 
+
+% Das float-Paket stellt erweiterte Möglichkeiten zur Plazierung von
+% Abbildungen und sonstiger „gleitender“ Inhalte zur Verfügung.
+%
+\usepackage{float}
+
+% Bilder mit „Bild“ anstatt mit „Abbildung“ bezeichnen
+%\renewcaptionname{ngerman}\figurename{Bild} % für deutsche Berichte einkommentiern 
+\renewcaptionname{english}\figurename{Fig.} % für englische Berichte einkommentiern   
+
+% Das picins-Paket stellt Befehle zur Verfügung, Bilder in den Text
+% zu integrieren und umfließen zu lassen.
+%
+%\usepackage{picins}
+
+% Bilder, Tabellen usw. sind in LaTeX normalerweise „gleitend“,
+% d.h., sie stehen nicht an einer bestimmten Stelle im Text, sondern
+% z.B. oben auf der Seite. Wenn man Bilder usw. nicht gleiten läßt,
+% sondern sie fest mit dem Text verbindet, ermöglicht dieses Paket,
+% ihre Beschriftung (caption) dennoch im Abbildungsverzeichnis
+% erscheinen zu lassen und darauf zu verweisen.
+%
+% Die hier verwendete KOMA-Version scrartlc des Artikel-Formats
+% enthält bereits die in diesem Paket enthaltenen Befehle. Sie
+% benötigen es daher nur, wenn Sie das Standard-Artikel-Format
+% article verwenden.
+% 
+%\usepackage{capt-of}
+
+% Paket für mehrseitige Tabellen
+%\usepackage{longtable}
+
+% Paket für Seitenrandabstände und Einstellung für Seitenränder
+\usepackage{geometry}
+\geometry{left=3.5cm, right=2cm, top=2.5cm, bottom=2cm}
+
+% Paket für Kästchen mit Spezialeffekten (z.B. Schatten)
+%\usepackage{fancybox}
+
+% bricht lange URLs „schön“ um
+\usepackage[hyphens,obeyspaces,spaces]{url}
+
+% Paket für Textfarben
+\usepackage{color}
+
+% Zusätzliche mathematische Symbole importieren
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% erzeugt Inhaltsverzeichnis mit Querverweisen zu den Kapiteln (PDF Version)
+\usepackage[bookmarksnumbered,hyperfootnotes=false]{hyperref} 
+\hypersetup{colorlinks,citecolor=black,linkcolor=black,urlcolor=black}
+
+% neue Kopfzeilen mit dem fancyhdr-Paket erzeugen
+\usepackage{fancyhdr} % Paket laden
+\pagestyle{fancy} % eigener Seitenstil
+\fancyhf{} % alle Kopf- und Fußzeilenfelder bereinigen
+\fancyhead[L]{\nouppercase{\leftmark}} % Kopfzeile links
+\fancyhead[C]{} % zentrierte Kopfzeile
+\fancyhead[R]{\thepage} % Kopfzeile rechts
+\renewcommand{\headrulewidth}{0.4pt} % obere Trennlinie
+
+% Festlegung der Art der Zitierung auf die Havard-Methode: Abkürzung Autor + Jahr.
+% Dieser Befehl gehört zum natbib-Paket.
+%
+\usepackage{natbib}
+\bibliographystyle{apalike_german}
+
+% keine Einrückung am Anfang eines Absatzes,
+% stattdessen vertikal etwas Platz lassen
+%
+\usepackage{parskip}
+
+% Paket zur Erweiterung der Tabellen-Befehle (tabular, array)
+%\usepackage{array}
+
+% Dieser Befehl würde den zusätzlichen Zwischenraum abschalten,
+% den LaTeX normalerweise nach einem Punkt einfügt.
+%\frenchspacing
+
+% Paket für Zeilenabstand einbinden
+%\usepackage{setspace}
+% Dieser Befehl würde den Zeilenabstand auf „1,5“ einstellen
+%\onehalfspacing
+
+% Paket für Listings (z.B. Computerprogramme)
+\usepackage{listings}
+%
+% Einstellungen für C-Quelltexte
+%\lstset{numbers=left,
+%        numberstyle=\tiny,
+%        numbersep=5pt,
+%        keywordstyle=\color{black}\bfseries,
+%        stringstyle=\ttfamily,
+%        showstringspaces=false,
+%        basicstyle=\footnotesize,
+%        captionpos=b}
+%\lstset{language=c}
+%
+% Einstellungen für LaTeX-Quelltexte
+\lstset{basicstyle=\ttfamily,
+        language=tex}
+
+% Nomenklatur
+%
+% Paket einbinden
+\usepackage{nomencl}
+%
+% Befehl „\nomenclature” alternativ als „\abk“ zur Verfügung stellen
+\let\abk\nomenclature
+%
+% Deutsche Überschrift für Nomenklaturverzeichnis
+\renewcommand{\nomname}{Nomenklatur} % nur für deutsche Berichte 
+%
+% Nomenklaturverzeichnis gestalten
+% Raum, der den Abkürzungen zur Verfügung steht = 0.2 der Gesamtbreite
+\setlength{\nomlabelwidth}{0.2\hsize}
+% Zeilenabstände verkleinern
+\setlength{\nomitemsep}{-\parsep}
+\makenomenclature
+% Erstellen von Unterteilungen in der Nomenklatur
+\RequirePackage{ifthen}
+\renewcommand{\nomgroup}[1]{%
+  \ifthenelse{\equal{#1}{A}}{\item[\textbf{Abkürzungen}]\vspace*{1cm}}{%
+    \ifthenelse{\equal{#1}{S}}{%
+      \item[\textbf{Symbole}]\vspace*{1cm}}{}%
+  }%
+}
+
+% Benutzte in Überschrift die gleiche Schriftart und Farbe wie im Text
+\setkomafont{disposition}{\normalcolor\bfseries}
+
+% Maßeinheit für picture-Grafiken
+\setlength{\unitlength}{1cm}
+
+%
+% fuer Stichwortverzeichnis
+\usepackage{makeidx}
+% Stichwortverzeichnis erstellen
+\makeindex
+\renewcommand{\indexname}{Stichwortverzeichnis} % nur für deutsche Berichte 
+
+%%%%%%%%%%%%%%%
+% pgfplots und tikz
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usetikzlibrary{patterns}
+\usetikzlibrary{datavisualization}
+\usetikzlibrary{arrows}
+
+\usepackage{gensymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage[toc,page]{appendix} % für englische Berichte
+
+
+% Bildnummern aus Nummer des Abschnitts und laufender Nummer zusammensetzen
+%
+% Bei Verwendung eines Bericht-Formats (s.o.) geschieht dies
+% automatisch mit der Kapitelnummer (\chapter – eine Ebene oberhalb
+% von \section). Für das Artikel-Format machen wir es hier manuell.
+%
+\renewcommand{\thefigure}{\arabic{section}.\arabic{figure}}
+\makeatletter\@addtoreset{figure}{section}\makeatother
+
+% Gleichungsnummern aus Nummer des Abschnitts und laufender Nummer zusammensetzen
+\renewcommand{\theequation}{\arabic{section}.\arabic{equation}}
+\makeatletter\@addtoreset{equation}{section}\makeatother
+
+% Tabellennummern aus Nummer des Abschnitts und laufender Nummer zusammensetzen
+\renewcommand{\thetable}{\arabic{section}.\arabic{table}}
+\makeatletter\@addtoreset{table}{section}\makeatother
+
+
+
+% auf römische Seitenzahlen umschalten
+%\pagenumbering{Roman}
+
+% Mit \input wird eine selbst erstellte .tex-Datei eingebunden.
+%
+% „trennung.tex“ enthält ein (selbst erstelltes) Verzeichnis mit
+% Trennhilfen für häufige Wörter, deren Silbentrennung von der
+% Automatik nicht korrekt erkannt wird.
+%
+\input{inhalt/trennung}
+
+% Mit \newcommand definieren wir einen neuen Befehl.
+% Die 1 in eckigen Klammern bedeutet, daß der Befehl einen Parameter
+% (bei Verwendung in geschweiften Klammern zu setzen) akzeptiert.
+% Mit #1 nehmen wir auf diesen Parameter bezug.
+%
+% Der Befehl bewirkt, daß der Parameter in Sans-Serif-Schrift gesetzt wird.
+%
+% Beispiel für die Verwendung des Befehls: \file{hauptdatei.tex}
+%
+% Man könnte natürlich auch direkt \textsf{hauptdatei.tex} schreiben.
+% Der neue Befehl hat aber den Vorteil, daß er markiert, was wir meinen
+% und nicht, wie es aussehen soll. Konkret: Wenn wir uns im Nachhinein
+% dafür entscheiden, Dateinamen doch nicht in Sans-Serif-Schrift, sondern
+% z.B. kursiv zu setzen, muß dafür nur die Befehlsdefinition geändert werden
+% – und nicht jede einzelne Stelle, an der der Befehl verwendet wird.
+%
+\newcommand{\file}[1]{\textsf{#1}}
+
+% Mit \begin{document} endet der Vorspann, und das eigentliche
+% Dokument beginnt.
+
+\begin{document}
+%
+  % Titelseite
+  %
+  % Mit \newcommand definieren wir eigene Befehle – in diesem Fall
+  % mit dem Zweck, Form und Inhalt zu trennen: In der Datei
+  % „deckblatt.tex“ gestalten wir ein Deckblatt zur allgemeinen
+  % Verwendung; für den konkreten Titel der Arbeit, Namen des Autors
+  % usw. verwenden wir „Variablen“ \thetitle, \theauthor usw., die
+  % wir hier vorab setzen.
+  %
+  \newcommand{\institutname}{  Institut für Mechatronik\\  und Fahrzeugtechnik}
+%  \newcommand{\institutname}{  Institut für Informatik\\  und eingebettete Systeme}
+  \newcommand{\thetitle}{Optimierung einer Dokumentation\\ % Umbruch an sinnvollen Stellen manuell vornehmen
+                         von mechatronischen Beispielprojekten}
+  \newcommand{\theauthor}{Max Mustermann}
+  \newcommand{\studentnumber}{123\,456\,7890}
+  \newcommand{\discipline}{Mechatronik \& Informationstechnologie}
+%  \newcommand{\discipline}{Maschinenbau}
+%  \newcommand{\discipline}{Elektrotechnik}
+%  \newcommand{\discipline}{Mechatronik}
+%  \newcommand{\discipline}{Elektromobilität}
+  \newcommand{\abschluss}{Bachelor of Engineering}
+%  \newcommand{\abschluss}{Master of Engineering}
+%  \newcommand{\dokumentname}{Dokumentation des KIS-Projekt-1 im Studiengang}
+%  \newcommand{\dokumentname}{Dokumentation des KIS-Projekt-2 im Studiengang}
+%  \newcommand{\dokumentname}{Dokumentation des KIS-Projekt-3 im Studiengang}
+%  \newcommand{\dokumentname}{Dokumentation der Praxisphase im Studiengang}
+  \newcommand{\dokumentname}{Bachelor-Arbeit im Studiengang}
+%  \newcommand{\dokumentname}{Master-Arbeit im Studiengang}
+  \newcommand{\finaldate}{35.~Mai 2038}
+ % Sperrvermerk, falls notwendig 
+\input{inhalt/sperrvermerk}
+\clearpage
+%
+ \input{deckblatt/deckblatt-cvh} % Inhalt aus separater Datei lesen
+%  \input{deckblatt/deckblatt-kis} % Inhalt aus separater Datei lesen
+
+  % Abstract
+  %
+  % Mit \clearpage eröffnen wir eine neue Seite. Wenn sich noch
+  % Bilder für den Beginn der nächsten Seite o.ä. im Speicher
+  % befinden, soll LaTeX diese jetzt abarbeiten.
+  \clearpage
+  %
+\pagenumbering{Roman}
+\setcounter{page}{2}
+  % Normalerweise wird bei einem neuen Abschnitt (\section{...}) die
+  % Kopfzeile links automatisch auf den Namen dieses Abschnitts gesetzt.
+  % Für das Abstract verwenden wir einen „stummen“ Abschnitt
+  % (\section*{...}), bei dem dies nicht automatisch geschieht.
+  % Mit dem folgenden Befehl setzen wir stattdessen die Kopfzeile
+  % „von Hand“ auf „Abstract“.
+  \fancyhead[L]{Abstract}
+  %
+  % Inhalt aus separater Datei lesen
+  \input{inhalt/abstract}
+
+  % Inhaltsverzeichnis auf neuer Seite anzeigen
+  \clearpage
+%  \fancyhead[L]{Inhaltsverszeichnis}
+  \fancyhead[L]{Table of Contents}
+  \tableofcontents
+
+  % Abkürzungsverzeichnis
+  \clearpage
+  \printnomenclature
+%  \fancyhead[L]{Nomenklatur} % Kopfzeile links, deutsche Berichte 
+  \fancyhead[L]{Nomenclature} % Kopfzeile links, englische Berichte 
+  %
+  % Im Gegensatz zu anderen Abschnitten erscheint das
+  % Abkürzungsverzeichnis nicht automatisch im Inhaltsverzeichnis.
+  % Mit dem folgenden Befehl können wir es „von Hand“ ergänzen.
+  %\addcontentsline{toc}{section}{Nomenklatur}
+
+  % Abschnitt 1: Einleitung
+  \clearpage
+   %
+  % Wenn wir oben die Kopfzeile links „von Hand“ gesetzt haben,
+  % müssen wir sie jetzt auf „Automatik“ zurücksetzen.
+  \fancyhead[L]{\nouppercase{\leftmark}}
+  %
+  % Wenn wir oben auf römische Seitenzahlen umgeschaltet haben,
+  % können wir hier auf arabische Seitenzahlen zurückschalten und
+  % den Seitenzähler zurücksetzen.
+  %\pagenumbering{arabic}
+  %
+  % den eigentlichen Inhalt aus separater Datei einbinden
+  \pagenumbering{arabic}
+%
+  \input{inhalt/1_einleitende_uebersicht}
+
+  % Abschnitt 2: Grundlagen
+  \clearpage
+  \input{inhalt/2_grundlagen}
+
+  % Abschnitt 3: Beispiele
+  \clearpage
+  \input{inhalt/3_latex-beispiele}
+
+
+
+  % Abschnitt 4: Zusammenfassung
+  \clearpage
+  \input{inhalt/4_zusammen}
+
+%  % Abbildungsverzeichnis
+%  \clearpage
+%  \listoffigures
+
+  % Literaturverzeichnis
+  \clearpage
+  % manuell in Inhaltsverzeichnis aufnehmen
+%  \addcontentsline{toc}{section}{Literatur- und Quellenverzeichnis} % für deutsche Berichte 
+  \addcontentsline{toc}{section}{References} % für englische Berichte 
+  % Umbenennen
+%  \renewcommand\refname{Literatur- und Quellenverzeichnis} % für deutsche Berichte
+  % Literaturverzeichnis anzeigen
+  \bibliography{hauptdatei}
+\clearpage
+
+% 
+%. Ggf. Bilderverzeichnis
+\listoffigures
+\clearpage
+
+%. Ggf. Tabellenverzeichnis
+\listoftables
+\clearpage
+
+%. Ggf. Abkürzungsverzeichnis
+% Steht schon vorne.....
+
+%. Ggf. Stichwortverzeichnis
+% Stichwortverzeichnis soll im Inhaltsverzeichnis auftauchen
+%\addcontentsline{toc}{section}{Stichwortverzeichnis} % für deutsche Berichte
+\addcontentsline{toc}{section}{Index}	% für englische Berichte
+% Stichwortverzeichnis endgueltig anzeigen
+\printindex
+\clearpage
+
+
+ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  % Anhang
+  \clearpage
+  \appendix
+%  \addcontentsline{toc}{section}{Anhang} % Für deutsche Berichte 
+  \addcontentsline{toc}{section}{Appendix}	% für englische Berichte 
+  % Formatierung des Anhangs
+  % Bildnummern aus Nummer des Abschnitts und laufender Nummer zusammensetzen
+  %
+  % Bei Verwendung eines Bericht-Formats (s.o.) geschieht dies
+  % automatisch mit der Kapitelnummer (\chapter – eine Ebene oberhalb
+  % von \section). Für das Artikel-Format machen wir es hier manuell.
+  %
+  \renewcommand{\thefigure}{\Alph{section}.\arabic{figure}}
+  \makeatletter\@addtoreset{figure}{section}\makeatother
+  % Gleichungsnummern aus Nummer des Abschnitts und laufender Nummer zusammensetzen
+  \renewcommand{\theequation}{\Alph{section}.\arabic{equation}}
+  \makeatletter\@addtoreset{equation}{section}\makeatother
+  % Tabellennummern aus Nummer des Abschnitts und laufender Nummer zusammensetzen
+  \renewcommand{\thetable}{\Alph{section}.\arabic{table}}
+  \makeatletter\@addtoreset{table}{section}\makeatother
+  %%%%
+  % Inhalt des Anhangs
+  \input{inhalt/anhang}
+
+  % Eidesstattliche Erklärung
+  \clearpage
+  \fancyhead[L]{Eidesstattliche Erklärung} % Kopfzeile links
+  %\addcontentsline{toc}{section}{Eidesstattliche Erklärung}
+  \input{inhalt/erklaerung}
+
+\end{document}

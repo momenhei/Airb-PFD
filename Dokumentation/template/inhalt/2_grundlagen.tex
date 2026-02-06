@@ -1,0 +1,165 @@
+\section{Grundlagen des wissenschaftlichen Schreibens mit Hilfe von \texorpdfstring{\LaTeX}{LaTeX}%
+         \label{sec:Grundlagen}}
+
+Eine Vorlage für eine wissenschaftlich Arbeit wie das hier
+vorliegende Dokument kann eine umfassende Einführung in das
+wissenschaftliche Schreiben oder eine fundierte Einarbeitung
+in das Textsatzprogramm \LaTeX\ nicht ersetzen. 
+Trotzdem erleichtert eine derartige Vorlage den Einstieg in das
+wissenschaftliche Schreiben mit Hilfe des Textsatzprogramms \LaTeX\
+(sprich: \glqq{}Latech\grqq{} oder "`Lay-Teck"') ungemein. 
+  % Hier demonstrieren wir zwei verschiedene Möglichkeiten, deutsche
+  % Anführungszeichen zu erzeugen. Zwei weitere sind „Latech“ (UTF-8)
+  % und \enquote{Lay-Teck} (Befehl).
+Demenstprechend finden sich zunächst im
+Abschnit~\ref{sec:Grundlagen-Schreiben} knapp umrissen die
+wichtigsten zu berücksichtigenden Punkte für eine wissenschaftliche
+Ausarbeitung. 
+Der Abschnitt~\ref{sec:Grundlagen-LaTeX} gibt einige Bezugsquellen
+und Installationshinweise für das Programmpaket \LaTeX\ und den
+zugehörigen Editor. 
+
+\subsection{Wissenschaftliches Schreiben%
+            \label{sec:Grundlagen-Schreiben}}
+
+Stichpunkte: 
+\begin{itemize}
+  \item
+    Generell ist als Erzähltempus der Dokumentation \glqq{}Präsens\grqq{} zu verwenden. Der Hintergrund dahinter ist der, dass in den Ingenieurwissenschaften sehr häufig über Zusammenhänge und Erkenntnisse zu berichten ist, die sich auch in der Zukunft nicht ändern. \\
+    \textbf{Beispiel Präsens (häufigerer Fall am CVH, beispielsweise bei der Erarbeitung eines Konzeptes/Algorithmus oder einer Konstruktion):} Für die Konstruktion des Hebelarms ist eine geeignete Verbindungstechnik auszulegen. Dafür eignet sich eine Verschraubung in der Größe M8, da diese eine dauerhaltbare Verschraubung darstellt, wie es in der Bachelorarbeit \citep{musterbachelorarbeit2015} ausführlich nachgewiesen ist. 
+    
+    Diese Aussage ist natürlich nicht mehr haltbar und das Tempus Präsens nicht zu verwenden, wenn es explizit um ein Protokoll der Tätigkeiten geht, beispielsweise, wenn es  um Verfahrensvorschriften oder dem dokumentieren des Einhaltens von Verhaltensrichtlinien geht. \\
+    \textbf{Beispiel Präteritum (seltener Fall am CVH beispielsweise für Beschreibungen von Versuchsdurchführungen):} Die Versuchsproben wurden entsprechend der Versuchsvorschrift \citep[Abschnitt 3]{DIN_EN_1995_1_1} vorbereitet  und entsprechend der Verfahrensvorschrift in \citep[Abschnitt 4]{musterhandbuch2012} zerstörend getestet. Die Ergebnisse des Versuchs finden sich in Anhang B in \citep{musterbachelorarbeit2015} . 
+    
+    Da sich die im Ergebnisse des eben aufgeführten Beispiels auch noch in zehn Jahren in der zitierten Arbeit wiederfinden, ist hier wieder sinnvollerweise als Tempus \glqq{}Präsens\grqq{} zu wählen, während sich die Bestätigung des korrekten Durchführens der Anweisungen in den zitierten Dokumenten mit Hilfe des \glqq{}Präteritums\grqq{} oder einer anderen grammatikalisch geeigneten Vergangenheitsform wie \glqq{}Perfekt\grqq{} geradezu aufdrängt. 
+    
+  \item
+    Schreiben Sie genau, was Sie meinen, nicht irgendetwas in der Richtung \dots
+      % \dots erzeugt drei Punkte im richtigen Abstand.
+      % Drei Punkte „von Hand“ haben den falschen Abstand. Das bitte nicht verwenden.
+  \item
+    Vermeiden Sie Wortwiederholungen.
+  \item
+    Benutzen Sie Aktiv-Konstruktionen und vermeiden Sie
+    Passiv-Konstruktionen ("`wird/werden"'), Sätze mit "`man"' usw.
+  \item
+    Zitate \& Quellen: 
+    \begin{itemize}
+      \item
+        Alle Behauptungen im Dokument sind zu beweisen oder mit
+        Zitaten-/Quel"-len"-angaben zu belegen. 
+          % Der Befehl "- gibt eine Trennhilfe, die für die
+          % verbliebenen Wortbestandteile die Trennautomatik intakt läßt. 
+          % Dies ist insbesondere bei zusammengesetzen Hauptwörtern
+          % (eine Spezialität der deutschen Sprache) nützlich.
+          % Alternativ gibt der Befehl \- eine Trennhilfe, die
+          % Trennungen ausschließlich an den markierten Stellen
+          % zuläßt.
+      \item 
+        Der Abschnitt \ref{sec:Grundlagen} ist der Grundlagenabschnitt. Im Prinzip können hier alle(!) nowendigen Grundlagen und Quellen zusammengetragen sein, selbst firmeninterne Informationen beispielsweise über Prozessabläufe oder Lagerhaltung. Das ist insbesondere dann wichtig, wenn beispielsweise nur bestimmte Zulieferer oder Bauteile für die Lösungsfindung zu verwenden sind. 
+
+Daher ist folgende Daumenregel zu beachten: Sämtliche(!) Zitate und Quellenangaben sind bis einschließlich Abschnitt \ref{sec:Grundlagen} anzugeben / zu zitieren. In den nachfolgenden Abschnitten folgen nur noch Querverweise auf den entsprechenden Unterabschnitt in Abschnitt \ref{sec:Grundlagen}. Die Literaturrecherche ist mit diesem Abschnitt abgeschlossen. 
+Ab dem folgenden Abschnitt kommt die eigentliche Eigen- bzw.~Transferleistung im Rahmen der Dokumentation. 
+
+      \item
+        Verwenden Sie Internet-Quellen mit Bedacht. 
+        Vermeiden Sie es, sich ausschließlich auf Internet-Quellen zu beziehen, insbesondere dann, wenn es auch Druckquellen gibt. Letztere weisen in der Regel eine deutlich bessere Qualität auf und sind zu bevorzugen! 
+        
+        Eine Ausnahme stellen hier jedoch insbesondere Datenblätter etc.~dar, da diese in der Regel aktueller sind als Kataloge in druckform. 
+        
+      \item
+        Insbesondere: Wenn Sie den Inhalt Ihrer Arbeit
+        komplett aus der Wikipedia herauskopieren,
+        führt dies zu keiner guten Note.
+      \item
+        Es gibt seriöse und weniger seriöse Quellen.
+        Internetdiskussionsforen gelten nicht als zuverlässige Quellen.
+    \end{itemize}
+  \item
+    Geben Sie Ihrer Arbeit eine Struktur/Gliederung, und stellen Sie
+    diese in der einleitenden Übersicht dar.
+  \item
+    Vermeiden Sie eine Zergliederung des Dokuments unterhalb der dritten Stufe.
+    Nach \lstinline|\subsubsection| sollten Sie aufhören.
+      % „\subsubsection“ ist ein Code-Beispiel im Inhalt der Arbeit.
+      % Um es satztechnisch abzuheben und gleichzeitig zu vermeiden,
+      % daß es als Befehl ausgeführt wird, packen wir es in
+      % \lstinline|...| ein. Das Zeichen „|“ ist ein beliebig
+      % wählbares Zeichen für die Anfangs- und Ende-Markierung.
+      % Auch \lstinline{...} ist zulässig, aber für viele
+      % Code-Beispiele (z.B. in Java oder C) eher unpraktisch.
+  \item
+    Es trägt deutlich zur Lesbarkeit eines Gesamtdokumentes bei,
+    wenn nach einem Hauptabschnitt nicht direkt ohne irgend einen
+    Satz geschrieben zu haben der nächste Unterabschnitt kommt.
+    Eine knapp gehaltene Zusammenfassung dessen,
+    was den Leser in diesem Hauptabschnitt eigentlich erwartet,
+    wie wir sie hier zwischen Abschnitt~\ref{sec:Grundlagen} und
+    \ref{sec:Grundlagen-Schreiben} geben, erleichtert die Lesbarkeit
+    sehr stark und kostet nicht viel Platz im gesamten Dokument.
+    Empfehlung: Machen!
+  \item
+    Referenzierbare Objekte wie z.\,B.\ Abschnitts-, Gleichungs-, Bild-,
+    und Tabellennummern sollten unbedingt Verwendung finden.
+    Wenn auf diese referenzierbaren Objekte nie im Dokument referenziert wird,
+    muss die Frage erlaubt sein, warum das überhaupt in der Ausarbeitung
+    erscheint \dots
+      % @@@ PG: Das kann man noch mehr auf den Punkt bringen.
+  \item
+    Was fehlt sonst noch?
+      % @@@
+\item eine Gleichung, der Satz des Pythagoras: 
+\begin{equation}
+c^2 = a^2 + b^2
+\end{equation}
+\end{itemize}
+
+\subsection{\texorpdfstring{\LaTeX}{LaTeX}\ -- Bezugsquellen und Installationshinweise%
+            \label{sec:Grundlagen-LaTeX}}
+
+% @@@
+%
+%Stichpunkte:
+%\begin{itemize}
+ % \item 
+ \LaTeX{} ist eine kostenlos beziehba- und nutzbare Software, die von verschiedenen Quellen heruntergeladen werden kann. 
+  Eine Quelle hierfür ist \\
+  \url{http://www.miktex.org} \\
+  sowie\\
+  \url{http://http://www.heise.de/download/} %\\     Installationsbezugsquellen: CTAN, Heise, \dots
+ 
+ % \item 
+ Anders als bei Word sieht man nicht direkt das fertige Dokument sondern man muss es \glqq{}programmieren\grqq{}. Mit Hilfe eines (beliebigen) Editors ist zunächst der Quellcode zu erstellen und danach mit Hilfe des Programms \LaTeX{} bzw.~Miktex zu compilieren. Das Ergebnis ist dann z.B.~ein pdf-Dokument. 
+%    Compilieren, bevor man was sehen kann \dots
+
+Das Compilieren erfolgt entweder aus einer Kommandozeile/Eingabeaufforderung heraus oder aus dem Editor, beispielsweise durch Drücken eines grünen Abspielknopfes. 
+
+%  \item 
+Als Editor kann jeder beliebige Editor benutzt werden. Zusammen mit der Installation von \LaTeX{} bzw.~Miktex ist auch standardmäßig ein Editor \texttt{texworks} mitinstalliert, der durchaus seine Zwecke erfüllt. 
+  Sehr häufig ist dieser mitgelieferte Editor vollkommen ausreichend. 
+  
+  Wem das nicht reicht, der kann komfortablere oder umfangreichere Editoren wie \linebreak[4] 
+  \texttt{TeXnicCenter}, \texttt{Led}, \texttt{LaTeXedt}, \texttt{kyle}, \texttt{emacs} o.ä.~verwenden. 
+%    \file{Texworks} als Editor \dots
+%  \item 
+Das Ergebnis des Compilierens ist u.a.~eine ansehbare Ausgabedatei, eine sogenannt DVI-Datei oder ein Postscript- oder PDF-Dokument. 
+%    ansehbare Ausgabedateien: DVI, PostScript oder PDF \dots
+%\end{itemize}
+
+
+
+\subsection{Erste Schritte}
+\label{sec:ErsteSchritte}
+Entpacken Sie die Zip-Datei und öffnen Sie die Datei \texttt{Hauptdatei.tex} mit einem Editor wie beispielsweise TeXWorks. 
+Kompilieren Sie nun die Datei. Wenn Sie bei der Installation die sinnvolle Einstellung gewählt haben, dass beim Compilieren fehlende Bibliotheken / Quellen installiert werden sollen, so komplettiert sich die \LaTeX{}-Installation beim compilieren selbsttätig. 
+
+Sofern alle Einstellungen im Editor richtig erfolgt sind, kann mit der rechten Maustaste zwischen dem pdf-Dokument und dem zugehörigen Quelltext der Stelle hin und her gewechselt werden. 
+
+Sollten Sie das Titelblatt ändern möchten, weil Sie an einer Bachelor-, Master- oder KIS-Arbeit schreiben, so müssen Sie die entsprechenden Kommentare in der Hauptdatei.tex verändern. 
+Ein Kommentar ist durch ein Prozentzeichen \% gekennzeichnet. 
+Alle Zeichen hinter dem \%{}-Zeichen werden von \LaTeX{} ignoriert. 
+
+
+
+
+
