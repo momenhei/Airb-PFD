@@ -6,6 +6,7 @@
 #include <iostream>
 #include <array>
 #include <algorithm>
+#include <memory>
 
 #define VERSION "0.1"
 #define WINDOW_WIDTH 1920
@@ -14,9 +15,10 @@
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 
-std::array<SDL_Vertex,36> getGeometry(){
-    std::array<SDL_Vertex,36> vertices{};
+static constexpr int vertexCount = 36;
+static std::unique_ptr<SDL_Vertex[]> vertices;
 
+void updateGeometry(){ //creating vertices for mask to create window for artificial horizon
     //calculating sclaing variables
     int width;
     int height;
@@ -48,8 +50,6 @@ std::array<SDL_Vertex,36> getGeometry(){
     //lower rounding
     v(30, fWidth-hSpacer, fHeight-(vSpacer + aHSize/6)); v(31, fWidth-(hSpacer+aHSize/4), fHeight-vSpacer); v(32, fWidth-hSpacer, fHeight-vSpacer);
     v(33, hSpacer,        fHeight-(vSpacer + aHSize/6)); v(34, hSpacer+ aHSize/4,         fHeight-vSpacer); v(35, hSpacer,        fHeight-vSpacer);
-
-    return vertices;
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
@@ -61,9 +61,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     }
 
     if (!SDL_CreateWindowAndRenderer("PFD", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
-        SDL_Log("Failed to Create Renderere or Window: %s", SDL_GetError());
+        SDL_Log("Failed to Create Rendererer or Window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
+    SDL_SetRenderVSync(renderer, 1);
+
+    vertices = std::make_unique<SDL_Vertex[]>(vertexCount);
+    updateGeometry();
     return SDL_APP_CONTINUE;
 }
 
@@ -71,8 +75,8 @@ SDL_AppResult SDL_AppIterate(void *appstate){
     SDL_SetRenderDrawColor(renderer, 0, 174, 199, 255);
     SDL_RenderClear(renderer);
     
-    const auto vertices = getGeometry();
-    SDL_RenderGeometry(renderer, NULL, vertices.data(), static_cast<int>(vertices.size()), NULL, 0);
+    
+    SDL_RenderGeometry(renderer, NULL, vertices.get(), vertexCount, NULL, 0);
 
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
@@ -81,6 +85,9 @@ SDL_AppResult SDL_AppIterate(void *appstate){
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
     if (event->type == SDL_EVENT_QUIT){
         return SDL_APP_SUCCESS;
+    }
+        if (event->type == SDL_EVENT_WINDOW_RESIZED) {
+            updateGeometry();
     }
     return SDL_APP_CONTINUE;
 }
