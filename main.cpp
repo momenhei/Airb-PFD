@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <array>
+#include <algorithm>
 
 #define VERSION "0.1"
 #define WINDOW_WIDTH 1920
@@ -13,34 +14,40 @@
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 
-std::array<SDL_Vertex,30> getGeometry(){
-    std::array<SDL_Vertex,30> vertices{};
+std::array<SDL_Vertex,36> getGeometry(){
+    std::array<SDL_Vertex,36> vertices{};
 
     //calculating sclaing variables
     int width;
     int height;
     SDL_GetWindowSize(window, &width, &height);
-    const float fWidth = static_cast<float>(width);
+    const float fWidth  = static_cast<float>(width);
     const float fHeight = static_cast<float>(height);
-    const float hSpacer = fWidth*0.25;
-    const float vSpacer = fHeight*0.25;
+    const float aHSize  = 0.5f*std::min(fHeight,fWidth);       //size of Artificial Horizon
+    const float hSpacer = 0.5f*(fWidth-aHSize);
+    const float vSpacer = 0.5f*(fHeight-aHSize);
     auto v = [&] (int i, float x, float y){vertices[i].position.x=x; vertices[i].position.y=y;vertices[i].color= {0.0f, 0.0f, 0.0f, 1.0f};};
 
     //left & right boundaries
-    v(  0,   0.0f,   0.0f    );   v( 1,  0.0f,           fHeight );  v(  2,  hSpacer,         fHeight);
-    v(  3,   hSpacer,0.0f    );   v( 4,  0.0f,           0.0f    );  v(  5,  hSpacer,         fHeight);
-    v(  6,   fWidth, fHeight );   v( 7,  fWidth-hSpacer, 0.0f    );  v(  8,  fWidth-hSpacer,  fHeight);
-    v(  9,   fWidth, 0.0f    );   v( 10, fWidth,         fHeight );  v(  11, fWidth-hSpacer,  0.0f   );
+    v(0, 0.0f,    0.0f   ); v( 1, 0.0f,           fHeight); v( 2,  hSpacer,        fHeight);
+    v(3, hSpacer, 0.0f   ); v( 4, 0.0f,           0.0f   ); v( 5,  hSpacer,        fHeight);
+    v(6, fWidth,  fHeight); v( 7, fWidth-hSpacer, 0.0f   ); v( 8,  fWidth-hSpacer, fHeight);
+    v(9, fWidth,  0.0f   ); v(10, fWidth,         fHeight); v(11,  fWidth-hSpacer, 0.0f   );
+
+    //top & bottom boundaries
+    v(12, fWidth-hSpacer, 0.0f); v(13, fWidth-hSpacer, vSpacer); v(14, hSpacer,        vSpacer);
+    v(15, hSpacer,        0.0f); v(16, hSpacer,        vSpacer); v(17, fWidth-hSpacer, 0.0f   );
+    
+    v(18, fWidth-hSpacer, fHeight); v(19, fWidth-hSpacer, fHeight-vSpacer); v(20, hSpacer,        fHeight-vSpacer);
+    v(21, hSpacer,        fHeight); v(22, hSpacer,        fHeight-vSpacer); v(23, fWidth-hSpacer, fHeight        );
 
     //upper rounding
-    v(  12,fWidth-hSpacer, 0.0f);   v( 13, fWidth/2, 0.0f );  v(14, fWidth-hSpacer,vSpacer);
-    v(  15,hSpacer, 0.0f);   v( 16, fWidth/2,0.0f );  v(17, hSpacer,vSpacer);
-    v(  18,fWidth, vSpacer/2);   v( 19, fWidth/2,0.0f );  v(20, 0.0f,vSpacer/2);
+    v(24, fWidth-hSpacer, vSpacer +aHSize/6 ); v(25, fWidth-(hSpacer+aHSize/4), vSpacer);  v(26, fWidth-hSpacer, vSpacer);
+    v(27, hSpacer,        vSpacer + aHSize/6); v(28, hSpacer+ aHSize/4,         vSpacer);  v(29, hSpacer,        vSpacer);
 
     //lower rounding
-    v(  21,fWidth-hSpacer, fHeight);   v( 22, fWidth/2, fHeight);  v(23, fWidth-hSpacer,fHeight-vSpacer);
-    v(  24,hSpacer, fHeight);   v( 25, fWidth/2,fHeight );  v(26, hSpacer,fHeight-vSpacer);
-    v(  27,fWidth, fHeight-vSpacer/2);   v( 28, fWidth/2,fHeight );  v(29, 0.0f,fHeight-vSpacer/2);
+    v(30, fWidth-hSpacer, fHeight-(vSpacer + aHSize/6)); v(31, fWidth-(hSpacer+aHSize/4), fHeight-vSpacer); v(32, fWidth-hSpacer, fHeight-vSpacer);
+    v(33, hSpacer,        fHeight-(vSpacer + aHSize/6)); v(34, hSpacer+ aHSize/4,         fHeight-vSpacer); v(35, hSpacer,        fHeight-vSpacer);
 
     return vertices;
 }
