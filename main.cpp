@@ -7,28 +7,57 @@
 #include <array>
 #include <algorithm>
 #include <memory>
+#include <math.h>
 
-#define VERSION "0.1"
+#define VERSION "0.2"
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
+static float fWidth  = 0.0f;
+static float fHeight = 0.0f;
 
 static constexpr int vertexCount = 36;
-static std::unique_ptr<SDL_Vertex[]> vertices;
+static std::unique_ptr<SDL_Vertex[]> mask;
+static std::unique_ptr<SDL_Vertex[]> horizon;
 
-void updateGeometry(){ //creating vertices for mask to create window for artificial horizon
+static float horizonRotation=90.0f;
+static float horizonRadius=0.0f;
+
+float degreeToRad(float dgr){
+    return dgr*3.141/180;
+}
+
+void calculateHorizonVertex(int index, float offsetPhi,float offsetR){
+    offsetPhi=degreeToRad(offsetPhi-90);
+    float hrzRot=degreeToRad(horizonRotation);
+    float phi= hrzRot+atan2(offsetR*sin(offsetPhi-hrzRot),horizonRadius+offsetR*cos(offsetPhi-hrzRot));
+    float r= sqrt(pow(horizonRadius,2)+pow(offsetR,2)+2*horizonRadius*offsetR*cos(offsetPhi-hrzRot));
+    horizon[index].position.x=r*cos(phi)+fWidth/2;
+    horizon[index].position.y=r*sin(phi)+fHeight/2;
+    horizon[index].color= {0.4f, 0.2f, 0.08f, 1.0f};
+}
+
+void updateHorizon(){
+    calculateHorizonVertex(0,horizonRotation,fWidth);
+    calculateHorizonVertex(1,180+horizonRotation,fWidth);
+    calculateHorizonVertex(2,90+horizonRotation,fWidth);
+}
+
+
+
+void updateMask(){ //creating vertices for mask to create window for artificial horizon
     //calculating sclaing variables
     int width;
     int height;
     SDL_GetWindowSize(window, &width, &height);
-    const float fWidth  = static_cast<float>(width);
-    const float fHeight = static_cast<float>(height);
+    fWidth  = static_cast<float>(width);
+    fHeight = static_cast<float>(height);
     const float aHSize  = 0.5f*std::min(fHeight,fWidth);       //size of Artificial Horizon
     const float hSpacer = 0.5f*(fWidth-aHSize);
     const float vSpacer = 0.5f*(fHeight-aHSize);
-    auto v = [&] (int i, float x, float y){vertices[i].position.x=x; vertices[i].position.y=y;vertices[i].color= {0.0f, 0.0f, 0.0f, 1.0f};};
+    auto v = [&] (int i, float x, float y){mask[i].position.x=x; mask[i].position.y=y;mask[i].color= {0.0f, 0.0f, 0.0f, 1.0f};};
 
     //left & right boundaries
     v(0, 0.0f,    0.0f   ); v( 1, 0.0f,           fHeight); v( 2,  hSpacer,        fHeight);
@@ -66,28 +95,50 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     }
     SDL_SetRenderVSync(renderer, 1);
 
-    vertices = std::make_unique<SDL_Vertex[]>(vertexCount);
-    updateGeometry();
+    mask = std::make_unique<SDL_Vertex[]>(vertexCount);
+    updateMask();
+    horizon = std::make_unique<SDL_Vertex[]>(3);
+    updateHorizon();
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppIterate(void *appstate){
-    SDL_SetRenderDrawColor(renderer, 0, 174, 199, 255);
+    SDL_SetRenderDrawColor(renderer, 3, 169, 244, 255);
     SDL_RenderClear(renderer);
-    
-    
-    SDL_RenderGeometry(renderer, NULL, vertices.get(), vertexCount, NULL, 0);
+    updateHorizon();
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderGeometry(renderer, NULL, horizon.get(), 3, NULL, 0);
+
+    SDL_RenderGeometry(renderer, NULL, mask.get(), vertexCount, NULL, 0);
 
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
 
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
-    if (event->type == SDL_EVENT_QUIT){
-        return SDL_APP_SUCCESS;
-    }
-        if (event->type == SDL_EVENT_WINDOW_RESIZED) {
-            updateGeometry();
+    switch(event->type){
+        case SDL_EVENT_QUIT:
+            return SDL_APP_SUCCESS;
+            break;
+        case SDL_EVENT_WINDOW_RESIZED:
+            updateMask();
+            break;
+        case SDL_EVENT_KEY_DOWN:
+            switch(event->key.key){
+                case SDLK_W:
+                    horizonRadius -= 4;
+                    break;
+                case SDLK_S:
+                    horizonRadius += 4;
+                    break;
+                case SDLK_A:
+                    horizonRotation -= 1;
+                    break;
+                case SDLK_D:
+                    horizonRotation += 1;
+                    break;
+            }
+            break;
     }
     return SDL_APP_CONTINUE;
 }
