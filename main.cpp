@@ -45,8 +45,6 @@ void updateHorizon(){
     calculateHorizonVertex(2,90+horizonRotation,fWidth);
 }
 
-
-
 void updateMask(){ //creating vertices for mask to create window for artificial horizon
     //calculating sclaing variables
     int width;
@@ -81,6 +79,14 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     v(33, hSpacer,        fHeight-(vSpacer + aHSize/6)); v(34, hSpacer+ aHSize/4,         fHeight-vSpacer); v(35, hSpacer,        fHeight-vSpacer);
 }
 
+void renderDeviders(){
+    float width=fWidth/5;
+    float height=fHeight/10;
+    for (int i=1;i<6;i++){
+        SDL_RenderLine(renderer,i*width,0,i*width,height);
+    }
+}
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
     SDL_SetAppMetadata("Airb-PFD", VERSION,"");
@@ -106,10 +112,12 @@ SDL_AppResult SDL_AppIterate(void *appstate){
     SDL_SetRenderDrawColor(renderer, 3, 169, 244, 255);
     SDL_RenderClear(renderer);
     updateHorizon();
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderGeometry(renderer, NULL, horizon.get(), 3, NULL, 0);
 
     SDL_RenderGeometry(renderer, NULL, mask.get(), vertexCount, NULL, 0);
+    
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    renderDeviders();
 
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
