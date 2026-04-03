@@ -17,6 +17,7 @@ static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static float fWidth  = 0.0f;
 static float fHeight = 0.0f;
+static float aHSize =  0.0f;
 
 static constexpr int vertexCount = 36;
 static std::unique_ptr<SDL_Vertex[]> mask;
@@ -32,8 +33,8 @@ float degreeToRad(float dgr){
 void calculateHorizonVertex(int index, float offsetPhi,float offsetR){
     offsetPhi=degreeToRad(offsetPhi-90);
     float hrzRot=degreeToRad(horizonRotation);
-    float phi= hrzRot+atan2(offsetR*sin(offsetPhi-hrzRot),horizonRadius+offsetR*cos(offsetPhi-hrzRot));
-    float r= sqrt(pow(horizonRadius,2)+pow(offsetR,2)+2*horizonRadius*offsetR*cos(offsetPhi-hrzRot));
+    float phi= hrzRot+atan2(offsetR*sin(offsetPhi-hrzRot),(aHSize*horizonRadius)+offsetR*cos(offsetPhi-hrzRot));
+    float r= sqrt(pow((aHSize*horizonRadius),2)+pow(offsetR,2)+2*(aHSize*horizonRadius)*offsetR*cos(offsetPhi-hrzRot));
     horizon[index].position.x=r*cos(phi)+fWidth/2;
     horizon[index].position.y=r*sin(phi)+fHeight/2;
     horizon[index].color= {0.4f, 0.2f, 0.08f, 1.0f};
@@ -52,7 +53,7 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     SDL_GetWindowSize(window, &width, &height);
     fWidth  = static_cast<float>(width);
     fHeight = static_cast<float>(height);
-    const float aHSize  = 0.5f*std::min(fHeight,fWidth);       //size of Artificial Horizon
+    aHSize  = 0.5f*std::min(fHeight,fWidth);       //size of Artificial Horizon
     const float hSpacer = 0.5f*(fWidth-aHSize);
     const float vSpacer = 0.5f*(fHeight-aHSize);
     auto v = [&] (int i, float x, float y){mask[i].position.x=x; mask[i].position.y=y;mask[i].color= {0.0f, 0.0f, 0.0f, 1.0f};};
@@ -134,10 +135,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
         case SDL_EVENT_KEY_DOWN:
             switch(event->key.key){
                 case SDLK_W:
-                    horizonRadius -= 4;
+                    horizonRadius -= 0.01;
                     break;
                 case SDLK_S:
-                    horizonRadius += 4;
+                    horizonRadius += 0.01;
                     break;
                 case SDLK_A:
                     horizonRotation -= 1;
