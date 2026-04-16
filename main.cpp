@@ -105,12 +105,23 @@ void renderText(){
 }
 
 void renderIndicators(){
-    SDL_SetRenderDrawColor(renderer, 120, 120, 120, 255);
+    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
     SDL_FRect re1 = {fWidth/8,fHeight/4,fWidth/12,fHeight/2};
     SDL_FRect re2 = {fWidth/8*7-fWidth/12,fHeight/4,fWidth/12,fHeight/2};
     SDL_RenderFillRect( renderer, &re1);
     SDL_RenderFillRect( renderer, &re2);
+
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    int speedLineOffset=speed%5*20;
+    for (int i=0; i<5; i++) {
+        SDL_RenderLine(renderer,
+            fWidth/8,
+            fHeight*3/4-speedLineOffset-i*fHeight/10,
+            fWidth/8+100,
+            fHeight*3/4-speedLineOffset-i*fHeight/10);
+    }
+
+
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
