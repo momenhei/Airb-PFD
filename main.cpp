@@ -120,6 +120,13 @@ void renderIndicators(){
             17*fWidth/96,
             fHeight/4+speedLineOffset+i*fHeight/10);
     }
+    
+    SDL_Vertex tri[] = {
+        {{5*fWidth/24,fHeight/2},{255,255,255,255}},
+        {{5*fWidth/24+20,fHeight/2+10},{255,255,255,255}},
+        {{5*fWidth/24+20,fHeight/2-10},{255,255,255,255}}
+    };
+    SDL_RenderGeometry(renderer, NULL, tri, 3, NULL, 0);
 
 
 }
