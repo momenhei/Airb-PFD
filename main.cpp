@@ -106,19 +106,24 @@ void renderText(){
 
 void renderIndicators(){
     SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
-    SDL_FRect re1 = {fWidth/8,fHeight/4,fWidth/12,fHeight/2};
-    SDL_FRect re2 = {fWidth/8*7-fWidth/12,fHeight/4,fWidth/12,fHeight/2};
+    float barHeight= fHeight/1.65;
+    SDL_FRect re1 = {fWidth/8,             fHeight/2-barHeight/2,   fWidth/12,  barHeight};
+    SDL_FRect re2 = {fWidth/8*7-fWidth/12, fHeight/2-barHeight/2,   fWidth/12,  barHeight};
     SDL_RenderFillRect( renderer, &re1);
     SDL_RenderFillRect( renderer, &re2);
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    int speedLineOffset=(speed+3)%5*20;
-    for (int i=0; i<5; i++) {
+    
+    float spacing = fHeight /10;
+    float center = fHeight /2;
+    float offset=fmodf(speed,5.0f)*spacing/5;
+    for (int i=-3; i<3; i++) {
+        float y = center + i * spacing + offset;
         SDL_RenderLine(renderer,
             5*fWidth/24,
-            fHeight/4+speedLineOffset+i*fHeight/10,
+            y,
             17*fWidth/96,
-            fHeight/4+speedLineOffset+i*fHeight/10);
+            y);
     }
     
     SDL_Vertex tri[] = {
