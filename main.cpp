@@ -116,9 +116,9 @@ void renderIndicators(){
     for (int i=0; i<5; i++) {
         SDL_RenderLine(renderer,
             fWidth/8,
-            fHeight*3/4-speedLineOffset-i*fHeight/10,
+            fHeight/4+speedLineOffset+i*fHeight/10,
             fWidth/8+100,
-            fHeight*3/4-speedLineOffset-i*fHeight/10);
+            fHeight/4+speedLineOffset+i*fHeight/10);
     }
 
 
