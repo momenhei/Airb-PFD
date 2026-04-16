@@ -9,7 +9,7 @@
 #include <memory>
 #include <math.h>
 
-#define VERSION "0.3"
+#define VERSION "0.4"
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 
@@ -108,7 +108,7 @@ void renderIndicators(){
     SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
     float barHeight= fHeight/1.65;
     SDL_FRect re1 = {fWidth/8,             fHeight/2-barHeight/2,   fWidth/12,  barHeight};
-    SDL_FRect re2 = {fWidth/8*7-fWidth/12, fHeight/2-barHeight/2,   fWidth/12,  barHeight};
+    SDL_FRect re2 = {19*fWidth/24, fHeight/2-barHeight/2,   fWidth/12,  barHeight};
     SDL_RenderFillRect( renderer, &re1);
     SDL_RenderFillRect( renderer, &re2);
 
