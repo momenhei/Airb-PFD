@@ -9,7 +9,7 @@
 #include <memory>
 #include <math.h>
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 
@@ -17,6 +17,7 @@ static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static float fWidth  = 0.0f;
 static float fHeight = 0.0f;
+static float aHSize =  0.0f;
 
 static constexpr int vertexCount = 36;
 static std::unique_ptr<SDL_Vertex[]> mask;
@@ -24,6 +25,7 @@ static std::unique_ptr<SDL_Vertex[]> horizon;
 
 static float horizonRotation=90.0f;
 static float horizonRadius=0.0f;
+static int speed=0;
 
 float degreeToRad(float dgr){
     return dgr*3.141/180;
@@ -32,8 +34,8 @@ float degreeToRad(float dgr){
 void calculateHorizonVertex(int index, float offsetPhi,float offsetR){
     offsetPhi=degreeToRad(offsetPhi-90);
     float hrzRot=degreeToRad(horizonRotation);
-    float phi= hrzRot+atan2(offsetR*sin(offsetPhi-hrzRot),horizonRadius+offsetR*cos(offsetPhi-hrzRot));
-    float r= sqrt(pow(horizonRadius,2)+pow(offsetR,2)+2*horizonRadius*offsetR*cos(offsetPhi-hrzRot));
+    float phi= hrzRot+atan2(offsetR*sin(offsetPhi-hrzRot),(aHSize*horizonRadius)+offsetR*cos(offsetPhi-hrzRot));
+    float r= sqrt(pow((aHSize*horizonRadius),2)+pow(offsetR,2)+2*(aHSize*horizonRadius)*offsetR*cos(offsetPhi-hrzRot));
     horizon[index].position.x=r*cos(phi)+fWidth/2;
     horizon[index].position.y=r*sin(phi)+fHeight/2;
     horizon[index].color= {0.4f, 0.2f, 0.08f, 1.0f};
@@ -52,7 +54,7 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     SDL_GetWindowSize(window, &width, &height);
     fWidth  = static_cast<float>(width);
     fHeight = static_cast<float>(height);
-    const float aHSize  = 0.5f*std::min(fHeight,fWidth);       //size of Artificial Horizon
+    aHSize  = 0.5f*std::min(fHeight,fWidth);       //size of Artificial Horizon
     const float hSpacer = 0.5f*(fWidth-aHSize);
     const float vSpacer = 0.5f*(fHeight-aHSize);
     auto v = [&] (int i, float x, float y){mask[i].position.x=x; mask[i].position.y=y;mask[i].color= {0.0f, 0.0f, 0.0f, 1.0f};};
@@ -87,6 +89,51 @@ void renderDeviders(){
     }
 }
 
+void renderText(){
+    SDL_SetRenderScale(renderer, fWidth/384, fHeight/216);
+    SDL_SetRenderDrawColor(renderer, 44, 255, 5, 255);
+    std::string speedStr = std::to_string(speed);
+    SDL_RenderDebugText(renderer, 38.4 -speedStr.length()*3.5, 4, speedStr.c_str());
+    SDL_RenderDebugText(renderer, 38.4-strlen("km/h")*3.5,    14, "km/h");
+    SDL_RenderDebugText(renderer, 115.2-strlen("G/S")*3.5,     4, "G/S");
+    SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
+    SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");
+    SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
+    SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_SetRenderScale(renderer, 1, 1);
+}
+
+void renderIndicators(){
+    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+    float barHeight= fHeight/1.65;
+    SDL_FRect re1 = {fWidth/8,             fHeight/2-barHeight/2,   fWidth/12,  barHeight};
+    SDL_FRect re2 = {fWidth/8*7-fWidth/12, fHeight/2-barHeight/2,   fWidth/12,  barHeight};
+    SDL_RenderFillRect( renderer, &re1);
+    SDL_RenderFillRect( renderer, &re2);
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    
+    float spacing = barHeight /6.0f;
+    float center = fHeight /2.0f;
+    float offset=fmodf(speed,5.0f)*spacing/5;
+    for (int i=-3; i<3; i++) {
+        float y = center + i * spacing + offset;
+        SDL_RenderLine(renderer,
+            5*fWidth/24,
+            y,
+            17*fWidth/96,
+            y);
+    }
+    
+    SDL_Vertex tri[] = {
+        {{5*fWidth/24,fHeight/2},{255,255,255,255}},
+        {{5*fWidth/24+20,fHeight/2+10},{255,255,255,255}},
+        {{5*fWidth/24+20,fHeight/2-10},{255,255,255,255}}
+    };
+    SDL_RenderGeometry(renderer, NULL, tri, 3, NULL, 0);
+}
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
     SDL_SetAppMetadata("Airb-PFD", VERSION,"");
@@ -118,7 +165,8 @@ SDL_AppResult SDL_AppIterate(void *appstate){
     
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     renderDeviders();
-
+    renderText();
+    renderIndicators();
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
@@ -134,16 +182,22 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
         case SDL_EVENT_KEY_DOWN:
             switch(event->key.key){
                 case SDLK_W:
-                    horizonRadius -= 4;
+                    horizonRadius -= 0.01;
                     break;
                 case SDLK_S:
-                    horizonRadius += 4;
+                    horizonRadius += 0.01;
                     break;
                 case SDLK_A:
                     horizonRotation -= 1;
                     break;
                 case SDLK_D:
                     horizonRotation += 1;
+                    break;
+                case SDLK_UP: 
+                    speed += 1;
+                    break;
+                case SDLK_DOWN:
+                    speed -= 1;
                     break;
             }
             break;
