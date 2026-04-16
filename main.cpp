@@ -26,6 +26,7 @@ static std::unique_ptr<SDL_Vertex[]> horizon;
 static float horizonRotation=90.0f;
 static float horizonRadius=0.0f;
 static int speed=0;
+static int altitude=0;
 
 float degreeToRad(float dgr){
     return dgr*3.141/180;
@@ -114,6 +115,7 @@ void renderIndicators(){
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     
+    // speed indicator
     float spacing = barHeight /6.0f;
     float center = fHeight /2.0f;
     float offset=fmodf(speed,5.0f)*spacing/5;
@@ -125,13 +127,15 @@ void renderIndicators(){
             17*fWidth/96,
             y);
     }
-    
     SDL_Vertex tri[] = {
         {{5*fWidth/24,fHeight/2},{255,255,255,255}},
-        {{5*fWidth/24+20,fHeight/2+10},{255,255,255,255}},
-        {{5*fWidth/24+20,fHeight/2-10},{255,255,255,255}}
+        {{5*fWidth/24+fWidth/75,fHeight/2+fHeight/100},{255,255,255,255}},
+        {{5*fWidth/24+fWidth/75,fHeight/2-fHeight/100},{255,255,255,255}}
     };
     SDL_RenderGeometry(renderer, NULL, tri, 3, NULL, 0);
+
+    //altitude indicator
+    // TO-DO
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
