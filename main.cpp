@@ -104,6 +104,15 @@ void renderText(){
     SDL_SetRenderScale(renderer, 1, 1);
 }
 
+void renderIndicators(){
+    SDL_SetRenderDrawColor(renderer, 120, 120, 120, 255);
+    SDL_FRect re1 = {fWidth/8,fHeight/4,fWidth/12,fHeight/2};
+    SDL_FRect re2 = {fWidth/8*7-fWidth/12,fHeight/4,fWidth/12,fHeight/2};
+    SDL_RenderFillRect( renderer, &re1);
+    SDL_RenderFillRect( renderer, &re2);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+}
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
     SDL_SetAppMetadata("Airb-PFD", VERSION,"");
@@ -136,6 +145,7 @@ SDL_AppResult SDL_AppIterate(void *appstate){
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     renderDeviders();
     renderText();
+    renderIndicators();
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
