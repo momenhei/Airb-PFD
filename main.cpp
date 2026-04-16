@@ -9,7 +9,7 @@
 #include <memory>
 #include <math.h>
 
-#define VERSION "0.2"
+#define VERSION "0.3"
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 
@@ -25,6 +25,7 @@ static std::unique_ptr<SDL_Vertex[]> horizon;
 
 static float horizonRotation=90.0f;
 static float horizonRadius=0.0f;
+static int speed=0;
 
 float degreeToRad(float dgr){
     return dgr*3.141/180;
@@ -88,6 +89,21 @@ void renderDeviders(){
     }
 }
 
+void renderText(){
+    SDL_SetRenderScale(renderer, fWidth/384, fHeight/216);
+    SDL_SetRenderDrawColor(renderer, 44, 255, 5, 255);
+    std::string speedStr = std::to_string(speed);
+    SDL_RenderDebugText(renderer, 38.4 -speedStr.length()*3.5, 4, speedStr.c_str());
+    SDL_RenderDebugText(renderer, 38.4-strlen("km/h")*3.5,    14, "km/h");
+    SDL_RenderDebugText(renderer, 115.2-strlen("G/S")*3.5,     4, "G/S");
+    SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
+    SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");
+    SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
+    SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_SetRenderScale(renderer, 1, 1);
+}
+
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
     SDL_SetAppMetadata("Airb-PFD", VERSION,"");
@@ -119,7 +135,7 @@ SDL_AppResult SDL_AppIterate(void *appstate){
     
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     renderDeviders();
-
+    renderText();
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
@@ -145,6 +161,12 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
                     break;
                 case SDLK_D:
                     horizonRotation += 1;
+                    break;
+                case SDLK_UP: 
+                    speed += 1;
+                    break;
+                case SDLK_DOWN:
+                    speed -= 1;
                     break;
             }
             break;
