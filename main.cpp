@@ -114,8 +114,8 @@ void renderIndicators(){
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     
-    float spacing = fHeight /10;
-    float center = fHeight /2;
+    float spacing = barHeight /6.0f;
+    float center = fHeight /2.0f;
     float offset=fmodf(speed,5.0f)*spacing/5;
     for (int i=-3; i<3; i++) {
         float y = center + i * spacing + offset;
@@ -132,8 +132,6 @@ void renderIndicators(){
         {{5*fWidth/24+20,fHeight/2-10},{255,255,255,255}}
     };
     SDL_RenderGeometry(renderer, NULL, tri, 3, NULL, 0);
-
-
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
