@@ -112,12 +112,12 @@ void renderIndicators(){
     SDL_RenderFillRect( renderer, &re2);
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    int speedLineOffset=speed%5*20;
+    int speedLineOffset=(speed+3)%5*20;
     for (int i=0; i<5; i++) {
         SDL_RenderLine(renderer,
-            fWidth/8,
+            5*fWidth/24,
             fHeight/4+speedLineOffset+i*fHeight/10,
-            fWidth/8+100,
+            17*fWidth/96,
             fHeight/4+speedLineOffset+i*fHeight/10);
     }
 
