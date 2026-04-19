@@ -110,8 +110,10 @@ void renderIndicators(){
     float barHeight= fHeight/1.65;
     SDL_FRect re1 = {fWidth/8,             fHeight/2-barHeight/2,   fWidth/12,  barHeight};
     SDL_FRect re2 = {19*fWidth/24, fHeight/2-barHeight/2,   fWidth/12,  barHeight};
+    SDL_FRect re3 = {fWidth/2-aHSize/2, fHeight/12*10,   aHSize,  fHeight/10};
     SDL_RenderFillRect( renderer, &re1);
     SDL_RenderFillRect( renderer, &re2);
+    SDL_RenderFillRect( renderer, &re3);
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     
