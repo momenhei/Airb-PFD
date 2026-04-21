@@ -61,19 +61,15 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     int idx = 0;
     auto v = [&] (float x, float y){mask[idx].position.x=x; mask[idx].position.y=y;mask[idx].color= {0.0f, 0.0f, 0.0f, 1.0f}; idx++;};
     auto tri = [&] (float x1, float y1, float x2, float y2, float x3, float y3) {v(x1,y1); v(x2,y2); v(x3,y3);};
+    auto rec = [&] (float x1, float y1, float x2, float y2) {tri(x1, y1, x1, y2, x2, y2); tri(x1, y1, x2, y2, x2, y1);};
 
     //left & right boundaries
-    tri(0.0f,    0.0f, 0.0f,           fHeight, hSpacer,        fHeight);
-    tri(hSpacer, 0.0f, 0.0f,           0.0f, hSpacer,        fHeight);
-    tri(fWidth,  fHeight, fWidth-hSpacer, 0.0f, fWidth-hSpacer, fHeight);
-    tri(fWidth,  0.0f, fWidth,         fHeight, fWidth-hSpacer, 0.0f   );
-
-    //top & bottom boundaries
-    tri(fWidth-hSpacer, 0.0f, fWidth-hSpacer, vSpacer, hSpacer,        vSpacer);
-    tri(hSpacer,        0.0f, hSpacer,        vSpacer, fWidth-hSpacer, 0.0f   );
+    rec(0.0f, 0.0f, hSpacer, fHeight);
+    rec(fWidth, fHeight, fWidth-hSpacer, 0.0f);
     
-    tri(fWidth-hSpacer, fHeight, fWidth-hSpacer, fHeight-vSpacer, hSpacer,        fHeight-vSpacer);
-    tri(hSpacer,        fHeight, hSpacer,        fHeight-vSpacer, fWidth-hSpacer, fHeight        );
+    //top & bottom boundaries
+    rec(0.0f, 0.0f, fWidth, vSpacer);
+    rec(fWidth, fHeight, 0.0f, fHeight-vSpacer);
 
     //upper rounding
     tri(fWidth-hSpacer, vSpacer +aHSize/6, fWidth-(hSpacer+aHSize/4), vSpacer, fWidth-hSpacer, vSpacer);
