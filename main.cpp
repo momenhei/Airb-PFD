@@ -58,28 +58,29 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     aHSize  = 0.5f*std::min(fHeight,fWidth);       //size of Artificial Horizon
     const float hSpacer = 0.5f*(fWidth-aHSize);
     const float vSpacer = 0.5f*(fHeight-aHSize);
-    auto v = [&] (int i, float x, float y){mask[i].position.x=x; mask[i].position.y=y;mask[i].color= {0.0f, 0.0f, 0.0f, 1.0f};};
+    int idx = 0;
+    auto v = [&] (float x, float y){mask[idx].position.x=x; mask[idx].position.y=y;mask[idx].color= {0.0f, 0.0f, 0.0f, 1.0f}; idx++;};
 
     //left & right boundaries
-    v(0, 0.0f,    0.0f   ); v( 1, 0.0f,           fHeight); v( 2,  hSpacer,        fHeight);
-    v(3, hSpacer, 0.0f   ); v( 4, 0.0f,           0.0f   ); v( 5,  hSpacer,        fHeight);
-    v(6, fWidth,  fHeight); v( 7, fWidth-hSpacer, 0.0f   ); v( 8,  fWidth-hSpacer, fHeight);
-    v(9, fWidth,  0.0f   ); v(10, fWidth,         fHeight); v(11,  fWidth-hSpacer, 0.0f   );
+    v(0.0f,    0.0f   ); v(0.0f,           fHeight); v(hSpacer,        fHeight);
+    v(hSpacer, 0.0f   ); v(0.0f,           0.0f   ); v(hSpacer,        fHeight);
+    v(fWidth,  fHeight); v(fWidth-hSpacer, 0.0f   ); v(fWidth-hSpacer, fHeight);
+    v(fWidth,  0.0f   ); v(fWidth,         fHeight); v(fWidth-hSpacer, 0.0f   );
 
     //top & bottom boundaries
-    v(12, fWidth-hSpacer, 0.0f); v(13, fWidth-hSpacer, vSpacer); v(14, hSpacer,        vSpacer);
-    v(15, hSpacer,        0.0f); v(16, hSpacer,        vSpacer); v(17, fWidth-hSpacer, 0.0f   );
+    v(fWidth-hSpacer, 0.0f); v(fWidth-hSpacer, vSpacer); v(hSpacer,        vSpacer);
+    v(hSpacer,        0.0f); v(hSpacer,        vSpacer); v(fWidth-hSpacer, 0.0f   );
     
-    v(18, fWidth-hSpacer, fHeight); v(19, fWidth-hSpacer, fHeight-vSpacer); v(20, hSpacer,        fHeight-vSpacer);
-    v(21, hSpacer,        fHeight); v(22, hSpacer,        fHeight-vSpacer); v(23, fWidth-hSpacer, fHeight        );
+    v(fWidth-hSpacer, fHeight); v(fWidth-hSpacer, fHeight-vSpacer); v(hSpacer,        fHeight-vSpacer);
+    v(hSpacer,        fHeight); v(hSpacer,        fHeight-vSpacer); v(fWidth-hSpacer, fHeight        );
 
     //upper rounding
-    v(24, fWidth-hSpacer, vSpacer +aHSize/6 ); v(25, fWidth-(hSpacer+aHSize/4), vSpacer);  v(26, fWidth-hSpacer, vSpacer);
-    v(27, hSpacer,        vSpacer + aHSize/6); v(28, hSpacer+ aHSize/4,         vSpacer);  v(29, hSpacer,        vSpacer);
+    v(fWidth-hSpacer, vSpacer +aHSize/6 ); v(fWidth-(hSpacer+aHSize/4), vSpacer);  v(fWidth-hSpacer, vSpacer);
+    v(hSpacer,        vSpacer + aHSize/6); v(hSpacer+ aHSize/4,         vSpacer);  v(hSpacer,        vSpacer);
 
     //lower rounding
-    v(30, fWidth-hSpacer, fHeight-(vSpacer + aHSize/6)); v(31, fWidth-(hSpacer+aHSize/4), fHeight-vSpacer); v(32, fWidth-hSpacer, fHeight-vSpacer);
-    v(33, hSpacer,        fHeight-(vSpacer + aHSize/6)); v(34, hSpacer+ aHSize/4,         fHeight-vSpacer); v(35, hSpacer,        fHeight-vSpacer);
+    v(fWidth-hSpacer, fHeight-(vSpacer + aHSize/6)); v(fWidth-(hSpacer+aHSize/4), fHeight-vSpacer); v(fWidth-hSpacer, fHeight-vSpacer);
+    v(hSpacer,        fHeight-(vSpacer + aHSize/6)); v(hSpacer+ aHSize/4,         fHeight-vSpacer); v(hSpacer,        fHeight-vSpacer);
 }
 
 void renderDeviders(){
