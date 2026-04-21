@@ -60,27 +60,28 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     const float vSpacer = 0.5f*(fHeight-aHSize);
     int idx = 0;
     auto v = [&] (float x, float y){mask[idx].position.x=x; mask[idx].position.y=y;mask[idx].color= {0.0f, 0.0f, 0.0f, 1.0f}; idx++;};
+    auto tri = [&] (float x1, float y1, float x2, float y2, float x3, float y3) {v(x1,y1); v(x2,y2); v(x3,y3);};
 
     //left & right boundaries
-    v(0.0f,    0.0f   ); v(0.0f,           fHeight); v(hSpacer,        fHeight);
-    v(hSpacer, 0.0f   ); v(0.0f,           0.0f   ); v(hSpacer,        fHeight);
-    v(fWidth,  fHeight); v(fWidth-hSpacer, 0.0f   ); v(fWidth-hSpacer, fHeight);
-    v(fWidth,  0.0f   ); v(fWidth,         fHeight); v(fWidth-hSpacer, 0.0f   );
+    tri(0.0f,    0.0f, 0.0f,           fHeight, hSpacer,        fHeight);
+    tri(hSpacer, 0.0f, 0.0f,           0.0f, hSpacer,        fHeight);
+    tri(fWidth,  fHeight, fWidth-hSpacer, 0.0f, fWidth-hSpacer, fHeight);
+    tri(fWidth,  0.0f, fWidth,         fHeight, fWidth-hSpacer, 0.0f   );
 
     //top & bottom boundaries
-    v(fWidth-hSpacer, 0.0f); v(fWidth-hSpacer, vSpacer); v(hSpacer,        vSpacer);
-    v(hSpacer,        0.0f); v(hSpacer,        vSpacer); v(fWidth-hSpacer, 0.0f   );
+    tri(fWidth-hSpacer, 0.0f, fWidth-hSpacer, vSpacer, hSpacer,        vSpacer);
+    tri(hSpacer,        0.0f, hSpacer,        vSpacer, fWidth-hSpacer, 0.0f   );
     
-    v(fWidth-hSpacer, fHeight); v(fWidth-hSpacer, fHeight-vSpacer); v(hSpacer,        fHeight-vSpacer);
-    v(hSpacer,        fHeight); v(hSpacer,        fHeight-vSpacer); v(fWidth-hSpacer, fHeight        );
+    tri(fWidth-hSpacer, fHeight, fWidth-hSpacer, fHeight-vSpacer, hSpacer,        fHeight-vSpacer);
+    tri(hSpacer,        fHeight, hSpacer,        fHeight-vSpacer, fWidth-hSpacer, fHeight        );
 
     //upper rounding
-    v(fWidth-hSpacer, vSpacer +aHSize/6 ); v(fWidth-(hSpacer+aHSize/4), vSpacer);  v(fWidth-hSpacer, vSpacer);
-    v(hSpacer,        vSpacer + aHSize/6); v(hSpacer+ aHSize/4,         vSpacer);  v(hSpacer,        vSpacer);
+    tri(fWidth-hSpacer, vSpacer +aHSize/6, fWidth-(hSpacer+aHSize/4), vSpacer, fWidth-hSpacer, vSpacer);
+    tri(hSpacer,        vSpacer + aHSize/6, hSpacer+ aHSize/4,         vSpacer, hSpacer,        vSpacer);
 
     //lower rounding
-    v(fWidth-hSpacer, fHeight-(vSpacer + aHSize/6)); v(fWidth-(hSpacer+aHSize/4), fHeight-vSpacer); v(fWidth-hSpacer, fHeight-vSpacer);
-    v(hSpacer,        fHeight-(vSpacer + aHSize/6)); v(hSpacer+ aHSize/4,         fHeight-vSpacer); v(hSpacer,        fHeight-vSpacer);
+    tri(fWidth-hSpacer, fHeight-(vSpacer + aHSize/6), fWidth-(hSpacer+aHSize/4), fHeight-vSpacer, fWidth-hSpacer, fHeight-vSpacer);
+    tri(hSpacer,        fHeight-(vSpacer + aHSize/6), hSpacer+ aHSize/4,         fHeight-vSpacer, hSpacer,        fHeight-vSpacer);
 }
 
 void renderDeviders(){
