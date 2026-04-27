@@ -22,6 +22,14 @@ int openSerialPort(const char* name){
     return fileDescriptor;
 }
 
+int readSerialPort(int fileDescriptor, char* buffer, size_t size){
+    return read(fileDescriptor, buffer, size);
+}
+
+void closeSerialPort(int fileDescriptor){
+    close(fileDescriptor);
+}
+
 Uint32 update(void* userdata, SDL_TimerID timerID, Uint32 interval){
     i+=1;
     return interval;
