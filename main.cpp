@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <memory>
 #include <math.h>
+#include <iomanip>
 
 #define VERSION "0.4"
 #define WINDOW_WIDTH 1920
@@ -80,6 +81,14 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     tri(hSpacer,        fHeight-(vSpacer + aHSize/6), hSpacer+ aHSize/4,         fHeight-vSpacer, hSpacer,        fHeight-vSpacer);
 }
 
+std::string getTimeString(){
+    std::time_t now = std::time(nullptr);
+    std::tm* local = std::localtime(&now);
+    std::ostringstream timeStream;
+    timeStream << std::put_time(local, "%H:%M");
+    return timeStream.str();
+}
+
 void renderDeviders(){
     float width=fWidth/5;
     float height=fHeight/10;
@@ -96,7 +105,9 @@ void renderText(){
     SDL_RenderDebugText(renderer, 38.4-strlen("km/h")*3.5,    14, "km/h");
     SDL_RenderDebugText(renderer, 115.2-strlen("G/S")*3.5,     4, "G/S");
     SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
-    SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");
+  //SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");  
+    std::string timeStr = getTimeString();
+    SDL_RenderDebugText(renderer, 268.8 - timeStr.length()*3.5, 4, timeStr.c_str());   
     SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
     SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
