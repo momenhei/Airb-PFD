@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <iostream>
+#include <fcntl.h>
 
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
@@ -10,6 +11,16 @@
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 static int i = 0;
+
+int openSerialPort(const char* name){
+    int fileDescriptor;
+    fileDescriptor = open(name, O_RDONLY | O_NOCTTY | O_NDELAY) // rad only & not controling terminal & don't care about state of DCD signal line
+    if (fileDescriptor<0){
+        SDL_Log("Failed to Open Serial Port");
+        return -1;
+    }
+    return fileDescriptor;
+}
 
 Uint32 update(void* userdata, SDL_TimerID timerID, Uint32 interval){
     i+=1;
