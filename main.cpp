@@ -157,7 +157,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_CreateWindowAndRenderer("PFD", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("PFD", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_FULLSCREEN, &window, &renderer)) {
         SDL_Log("Failed to Create Rendererer or Window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
@@ -167,6 +167,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     updateMask();
     horizon = std::make_unique<SDL_Vertex[]>(3);
     updateHorizon();
+    SDL_HideCursor();
     return SDL_APP_CONTINUE;
 }
 
