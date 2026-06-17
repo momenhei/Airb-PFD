@@ -84,6 +84,61 @@ void closeSerialPort(int fileDescriptor){
     close(fileDescriptor);
 }
 
+int knotsToKmH(int velocity){
+    return velocity*1.852;
+}
+
+void filterData(){
+    if (gpsText.compare(0,6,"$GPRMC")){
+        std::string copy=gpsText;
+        size_t pos;
+        int i=0;
+        while ((pos = copy.find(",")) != std::string::npos){
+            std::string tmp = copy.substr(0,pos);
+            copy.erase(0, pos+1);
+            switch(i){
+            case 1:  //UTC of position
+                
+                break;
+            case 2:  //Position status (A = data valid, V = data invalid)
+                
+                break;
+            case 3:  //Latitude (DDmm.mm)
+                
+                break;
+            case 4:  //Latitude direction: (N = North, S = South)
+                
+                break;
+            case 5:  //Longitude (DDDmm.mm)
+                
+                break;
+            case 6:  //Longitude direction: (E = East, W = West)
+                
+                break;
+            case 7:  //Speed over ground, knots
+                speed = knotsToKmH(std::stoi(tmp));
+                break;
+            case 8:  //Track made good, degrees True
+                
+                break;
+            case 9:  //Date: dd/mm/yy
+                
+                break;
+            case 10: //Magnetic variation, degrees
+                
+                break;
+            case 11: //Magnetic variation direction E/W
+                
+                break;
+            case 12: //Positioning system mode indicator, NMEA quality indicator
+                
+                break;
+            }
+            i++;
+        }
+    }
+}
+
 Uint32 updateData(void* userdata, SDL_TimerID timerID, Uint32 interval){
     char buffer[256];
     std::string serialBuffer;
@@ -96,6 +151,7 @@ Uint32 updateData(void* userdata, SDL_TimerID timerID, Uint32 interval){
 	        serialBuffer.erase(0,pos+1);
 	    }
     }
+    filterData();
     return interval;
 }
 
