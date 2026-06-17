@@ -33,6 +33,7 @@ static float horizonRotation=90.0f;
 static float horizonRadius=0.0f;
 static float speed=0.0;
 static int altitude=0;
+static std::string time;
 
 static int gpsFileDescriptor=-1;
 static std::string gpsText = "Warte auf GPS";
@@ -101,7 +102,7 @@ void filterData(){
             copy.erase(0, pos+1);
             switch(i){
             case 1:  //UTC of position
-                
+                time = tmp.substr(0,2)+":"+tmp.substr(2,2)+":"+tmp.substr(4,2);
                 break;
             case 2:  //Position status (A = data valid, V = data invalid)
                 
@@ -214,38 +215,6 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     tri(hSpacer,        fHeight-(vSpacer + aHSize/6), hSpacer+ aHSize/4,         fHeight-vSpacer, hSpacer,        fHeight-vSpacer);
 }
 
-struct TimeData {
-    std::string time;      // HH:MM
-    std::string year;      // YYYY
-    std::string date;      // DD.MM.
-    std::string weekday;   // Mon, Tue, etc
-};
-
-TimeData getTimeData() {
-    std::time_t now = std::time(nullptr);
-    std::tm* local = std::localtime(&now);
-
-    TimeData t;
-
-    char bufferTime[6];
-    std::strftime(bufferTime, sizeof(bufferTime), "%H:%M", local);
-    t.time = bufferTime;
-
-    char bufferYear[5];
-    std::strftime(bufferYear, sizeof(bufferYear), "%Y", local);
-    t.year = bufferYear;
-
-    char bufferDate[7];
-    std::strftime(bufferDate, sizeof(bufferDate), "%d.%m.", local);
-    t.date = bufferDate;
-
-    char bufferWeek[4];
-    std::strftime(bufferWeek, sizeof(bufferWeek), "%a", local);
-    t.weekday = bufferWeek;
-
-    return t;
-}
-
 void renderDeviders(){
     float width=fWidth/5;
     float height=fHeight/10;
@@ -267,17 +236,17 @@ void renderText(){
     TimeData t = getTimeData();
   //SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
   //SDL_RenderDebugText(renderer, 192-strlen(t.date.c_str())*3.5,       4, t.date.c_str());
-    SDL_RenderDebugText(renderer, 192-strlen(t.time.c_str())*3.5,       4, t.time.c_str());
+    SDL_RenderDebugText(renderer, 192-8*3.5,       4, time.c_str());
   
   //SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");  
   //std::string timeStr = getTimeString();
   //SDL_RenderDebugText(renderer, 268.8 - timeStr.length()*3.5, 4, timeStr.c_str());   
-    SDL_RenderDebugText(renderer, 268.8 - t.weekday.length()*3.5, 4, t.weekday.c_str());
+    SDL_RenderDebugText(renderer, 268.8 - 2*3.5, 4, "WD");
 
   //SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
   //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
-    SDL_RenderDebugText(renderer, 345.6-strlen(t.date.c_str())*3.5,     4, t.date.c_str());
-    SDL_RenderDebugText(renderer, 345.6-strlen(t.year.c_str())*3.5,    14, t.year.c_str());
+    SDL_RenderDebugText(renderer, 345.6-4*3.5,     4, "date");
+    SDL_RenderDebugText(renderer, 345.6-4*3.5,    14, "year");
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
 }
@@ -338,7 +307,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_HideCursor();
     
     gpsFileDescriptor = openSerialPort("/dev/serial0");
-    SDL_AddTimer(50, updateData, nullptr);
+    SDL_AddTimer(100, updateData, nullptr);
 
     return SDL_APP_CONTINUE;
 }
