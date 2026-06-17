@@ -92,7 +92,7 @@ int knotsToKmH(int velocity){
 }
 
 void filterData(){
-    if (gpsText.compare(0,6,"$GPRMC")){
+    if (gpsText.compare(0,6,"$GPRMC")==0){
         std::string copy=gpsText;
         size_t pos;
         int i=0;
