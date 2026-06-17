@@ -249,7 +249,7 @@ void renderText(){
 
   //SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
   //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
-    SDL_RenderDebugText(renderer, 345.6-strlen(gpsDate)*3.5,     4, gpsDate);
+    SDL_RenderDebugText(renderer, 345.6-gpsDate.length()*3.5,     4, gpsDate);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
 }
