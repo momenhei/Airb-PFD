@@ -334,7 +334,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     SDL_HideCursor();
     
     gpsFileDescriptor = openSerialPort("/dev/serial0");
-    SDL_AddTimer(1000, updateData, nullptr);
+    SDL_AddTimer(100, updateData, nullptr);
 
     return SDL_APP_CONTINUE;
 }
