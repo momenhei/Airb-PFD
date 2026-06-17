@@ -8,6 +8,9 @@
 #include <algorithm>
 #include <memory>
 #include <math.h>
+#include <iomanip>
+#include <ctime>
+#include <string>
 
 #define VERSION "0.4"
 #define WINDOW_WIDTH 1920
@@ -80,6 +83,39 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     tri(hSpacer,        fHeight-(vSpacer + aHSize/6), hSpacer+ aHSize/4,         fHeight-vSpacer, hSpacer,        fHeight-vSpacer);
 }
 
+
+struct TimeData {
+    std::string time;      // HH:MM
+    std::string year;      // YYYY
+    std::string date;      // DD.MM.
+    std::string weekday;   // Mon, Tue, etc
+};
+
+TimeData getTimeData() {
+    std::time_t now = std::time(nullptr);
+    std::tm* local = std::localtime(&now);
+
+    TimeData t;
+
+    char bufferTime[6];
+    std::strftime(bufferTime, sizeof(bufferTime), "%H:%M", local);
+    t.time = bufferTime;
+
+    char bufferYear[5];
+    std::strftime(bufferYear, sizeof(bufferYear), "%Y", local);
+    t.year = bufferYear;
+
+    char bufferDate[7];
+    std::strftime(bufferDate, sizeof(bufferDate), "%d.%m.", local);
+    t.date = bufferDate;
+
+    char bufferWeek[4];
+    std::strftime(bufferWeek, sizeof(bufferWeek), "%a", local);
+    t.weekday = bufferWeek;
+
+    return t;
+}
+
 void renderDeviders(){
     float width=fWidth/5;
     float height=fHeight/10;
@@ -91,14 +127,27 @@ void renderDeviders(){
 void renderText(){
     SDL_SetRenderScale(renderer, fWidth/384, fHeight/216);
     SDL_SetRenderDrawColor(renderer, 44, 255, 5, 255);
+
     std::string speedStr = std::to_string(speed);
     SDL_RenderDebugText(renderer, 38.4 -speedStr.length()*3.5, 4, speedStr.c_str());
     SDL_RenderDebugText(renderer, 38.4-strlen("km/h")*3.5,    14, "km/h");
+
     SDL_RenderDebugText(renderer, 115.2-strlen("G/S")*3.5,     4, "G/S");
-    SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
-    SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");
-    SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
-    SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
+    
+    TimeData t = getTimeData();
+  //SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
+  //SDL_RenderDebugText(renderer, 192-strlen(t.date.c_str())*3.5,       4, t.date.c_str());
+    SDL_RenderDebugText(renderer, 192-strlen(t.time.c_str())*3.5,       4, t.time.c_str());
+  
+  //SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");  
+  //std::string timeStr = getTimeString();
+  //SDL_RenderDebugText(renderer, 268.8 - timeStr.length()*3.5, 4, timeStr.c_str());   
+    SDL_RenderDebugText(renderer, 268.8 - t.weekday.length()*3.5, 4, t.weekday.c_str());
+
+  //SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
+  //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
+    SDL_RenderDebugText(renderer, 345.6-strlen(t.date.c_str())*3.5,     4, t.date.c_str());
+    SDL_RenderDebugText(renderer, 345.6-strlen(t.year.c_str())*3.5,    14, t.year.c_str());
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
 }
@@ -146,7 +195,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_CreateWindowAndRenderer("PFD", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer)) {
+    if (!SDL_CreateWindowAndRenderer("PFD", WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_FULLSCREEN, &window, &renderer)) {
         SDL_Log("Failed to Create Rendererer or Window: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
@@ -156,6 +205,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     updateMask();
     horizon = std::make_unique<SDL_Vertex[]>(3);
     updateHorizon();
+    SDL_HideCursor();
     return SDL_APP_CONTINUE;
 }
 
