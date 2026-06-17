@@ -11,6 +11,9 @@
 #include <iomanip>
 #include <ctime>
 #include <string>
+#include <fcntl.h>
+#include <termios.h>
+#include <unistd.h>
 
 #define VERSION "0.4"
 #define WINDOW_WIDTH 1920
