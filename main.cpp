@@ -34,6 +34,7 @@ static float horizonRadius=0.0f;
 static float speed=0.0;
 static int altitude=0;
 static std::string gpsTime;
+static std::string gpsDate;
 
 static int gpsFileDescriptor=-1;
 static std::string gpsText = "Warte auf GPS";
@@ -130,7 +131,7 @@ void filterData(){
                 
                 break;
             case 9:  //Date: dd/mm/yy
-                
+                gpsDate = tmp;
                 break;
             case 10: //Magnetic variation, degrees
                 
@@ -248,8 +249,7 @@ void renderText(){
 
   //SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
   //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
-    SDL_RenderDebugText(renderer, 345.6-4*3.5,     4, "date");
-    SDL_RenderDebugText(renderer, 345.6-4*3.5,    14, "year");
+    SDL_RenderDebugText(renderer, 345.6-strlen(gpsDate)*3.5,     4, gpsDate);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
 }
