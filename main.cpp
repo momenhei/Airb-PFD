@@ -31,6 +31,74 @@ static float horizonRadius=0.0f;
 static int speed=0;
 static int altitude=0;
 
+static int gpsFileDescriptor=-1;
+static std::string gpsText = "Warte auf GPS";
+
+int openSerialPort(const char* name){
+    int fileDescriptor;
+    fileDescriptor = open(name, O_RDONLY | O_NOCTTY | O_NDELAY); // rad only & not controling terminal & don't care about state of DCD signal line
+    if (fileDescriptor<0){
+        SDL_Log("Failed to Open Serial Port");
+        return -1;
+    }
+
+    struct termios tty{};
+    if (tcgetattr(fileDescriptor, &tty) != 0)
+    {
+        SDL_Log("tcgetattr failed");
+        close(fileDescriptor);
+        return -1;
+    }
+
+    cfsetispeed(&tty, B9600);
+    cfsetospeed(&tty, B9600);
+
+    tty.c_cflag |= (CLOCAL | CREAD);
+    tty.c_cflag &= ~PARENB;
+    tty.c_cflag &= ~CSTOPB;
+    tty.c_cflag &= ~CSIZE;
+    tty.c_cflag |= CS8;
+
+    tty.c_lflag = 0;
+    tty.c_iflag = 0;
+    tty.c_oflag = 0;
+
+    tty.c_cc[VMIN] = 0;
+    tty.c_cc[VTIME] = 1;
+
+    if (tcsetattr(fileDescriptor, TCSANOW, &tty) != 0)
+    {
+        SDL_Log("tcsetattr failed");
+        close(fileDescriptor);
+        return -1;
+    }
+
+    return fileDescriptor;
+}
+
+int readSerialPort(int fileDescriptor, char* buffer, size_t size){
+    return read(fileDescriptor, buffer, size);
+}
+
+void closeSerialPort(int fileDescriptor){
+    close(fileDescriptor);
+}
+
+Uint32 updateData(void* userdata, SDL_TimerID timerID, Uint32 interval){
+    char buffer[256];
+    std::string serialBuffer;
+    int n = read(gpsFileDescriptor, buffer, sizeof(buffer));
+    if (n > 0){
+	    serialBuffer.append(buffer, n);
+	    size_t pos;
+	    while ((pos = serialBuffer.find("\n")) != std::string::npos){
+	        gpsText = serialBuffer.substr(0, pos);
+	        serialBuffer.erase(0,pos+1);
+	    }
+    }
+    return interval;
+}
+
 float degreeToRad(float dgr){
     return dgr*3.141/180;
 }
@@ -82,7 +150,6 @@ void updateMask(){ //creating vertices for mask to create window for artificial 
     tri(fWidth-hSpacer, fHeight-(vSpacer + aHSize/6), fWidth-(hSpacer+aHSize/4), fHeight-vSpacer, fWidth-hSpacer, fHeight-vSpacer);
     tri(hSpacer,        fHeight-(vSpacer + aHSize/6), hSpacer+ aHSize/4,         fHeight-vSpacer, hSpacer,        fHeight-vSpacer);
 }
-
 
 struct TimeData {
     std::string time;      // HH:MM
@@ -206,6 +273,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     horizon = std::make_unique<SDL_Vertex[]>(3);
     updateHorizon();
     SDL_HideCursor();
+    
+    gpsFileDescriptor = openSerialPort("/dev/serial0");
+    SDL_AddTimer(1000, updateData, nullptr);
+
     return SDL_APP_CONTINUE;
 }
 
@@ -264,5 +335,8 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     //SDL_DestroyTexture(texture);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    if (gpsFileDescriptor >= 0){
+        closeSerialPort(gpsFileDescriptor);
+    }
     SDL_Quit();
 }

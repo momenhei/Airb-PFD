@@ -12,7 +12,6 @@
 
 static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
-static int i = 0;
 static int gpsFileDescriptor=-1;
 static std::string gpsText = "Warte auf GPS";
 
