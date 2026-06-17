@@ -33,7 +33,7 @@ static float horizonRotation=90.0f;
 static float horizonRadius=0.0f;
 static float speed=0.0;
 static int altitude=0;
-static std::string time;
+static std::string gpsTime;
 
 static int gpsFileDescriptor=-1;
 static std::string gpsText = "Warte auf GPS";
@@ -102,7 +102,7 @@ void filterData(){
             copy.erase(0, pos+1);
             switch(i){
             case 1:  //UTC of position
-                time = tmp.substr(0,2)+":"+tmp.substr(2,2)+":"+tmp.substr(4,2);
+                gpsTime = tmp.substr(0,2)+":"+tmp.substr(2,2)+":"+tmp.substr(4,2);
                 break;
             case 2:  //Position status (A = data valid, V = data invalid)
                 
@@ -233,10 +233,9 @@ void renderText(){
 
     SDL_RenderDebugText(renderer, 115.2-strlen("G/S")*3.5,     4, "G/S");
     
-    TimeData t = getTimeData();
   //SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
   //SDL_RenderDebugText(renderer, 192-strlen(t.date.c_str())*3.5,       4, t.date.c_str());
-    SDL_RenderDebugText(renderer, 192-8*3.5,       4, time.c_str());
+    SDL_RenderDebugText(renderer, 192-8*3.5,       4, gpsTime.c_str());
   
   //SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");  
   //std::string timeStr = getTimeString();
