@@ -121,7 +121,7 @@ void filterData(){
             case 7:  //Speed over ground, knots
                 try{
                     speed = knotsToKmH(std::stof(tmp));
-                }catch{
+                }catch (const std::exception& e) {
                     speed=0.0;
                 }
                 break;
