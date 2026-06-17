@@ -131,7 +131,7 @@ void filterData(){
                 
                 break;
             case 9:  //Date: dd/mm/yy
-                gpsDate = tmp;
+                gpsDate = tmp.substr(0,2)+"-"+tmp.substr(2,2)+"-"+tmp.substr(4,2);
                 break;
             case 10: //Magnetic variation, degrees
                 
