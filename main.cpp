@@ -119,7 +119,11 @@ void filterData(){
                 
                 break;
             case 7:  //Speed over ground, knots
-                speed = knotsToKmH(std::stof(tmp));
+                try{
+                    speed = knotsToKmH(std::stof(tmp));
+                }catch{
+                    speed=0.0;
+                }
                 break;
             case 8:  //Track made good, degrees True
                 
