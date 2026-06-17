@@ -154,8 +154,13 @@ Uint32 updateData(void* userdata, SDL_TimerID timerID, Uint32 interval){
     if (n > 0){
 	    serialBuffer.append(buffer, n);
 	    size_t pos;
-	    while ((pos = serialBuffer.find("\n")) != std::string::npos){
-	        gpsText = serialBuffer.substr(0, pos);
+	    while ((pos = serialBuffer.find("$GPRMC")) != std::string::npos){
+	        std::string tmp = serialBuffer.substr(pos, -1);
+
+            size_t pos2;
+	        while ((pos = tmp.find("\n")) != std::string::npos){
+                gpsText = tmp.substr(pos, -1);
+            }
 	        serialBuffer.erase(0,pos+1);
 	    }
     }
