@@ -149,22 +149,21 @@ void filterData(){
 
 Uint32 updateData(void* userdata, SDL_TimerID timerID, Uint32 interval){
     char buffer[256];
-    std::string serialBuffer;
+    static std::string serialBuffer;
     int n = read(gpsFileDescriptor, buffer, sizeof(buffer));
     if (n > 0){
 	    serialBuffer.append(buffer, n);
-	    size_t pos;
-	    while ((pos = serialBuffer.find("$GPRMC")) != std::string::npos){
-	        std::string tmp = serialBuffer.substr(pos, -1);
-
-            size_t pos2;
-	        while ((pos = tmp.find("\n")) != std::string::npos){
-                gpsText = tmp.substr(pos, -1);
+	    size_t start;
+	    while ((start = serialBuffer.find("$GPRMC")) != std::string::npos){
+            size_t end = serialBuffer.find("\n", start);
+            if(end == std::string::npos){
+                break;
             }
-	        serialBuffer.erase(0,pos+1);
+            gpsText = serialBuffer.substr(start, end - start);
+            filterData();
+	        serialBuffer.erase(0,end+1);
 	    }
     }
-    filterData();
     return interval;
 }
 
