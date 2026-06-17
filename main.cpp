@@ -31,7 +31,7 @@ static std::unique_ptr<SDL_Vertex[]> horizon;
 
 static float horizonRotation=90.0f;
 static float horizonRadius=0.0f;
-static int speed=0;
+static float speed=0.0;
 static int altitude=0;
 
 static int gpsFileDescriptor=-1;
@@ -119,7 +119,7 @@ void filterData(){
                 
                 break;
             case 7:  //Speed over ground, knots
-                speed = knotsToKmH(std::stoi(tmp));
+                speed = knotsToKmH(std::stof(tmp));
                 break;
             case 8:  //Track made good, degrees True
                 
@@ -378,10 +378,10 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
                     horizonRotation += 1;
                     break;
                 case SDLK_UP: 
-                    speed += 1;
+                    speed += 1.0;
                     break;
                 case SDLK_DOWN:
-                    speed -= 1;
+                    speed -= 1.0;
                     break;
             }
             break;
