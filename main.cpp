@@ -87,7 +87,7 @@ void closeSerialPort(int fileDescriptor){
     close(fileDescriptor);
 }
 
-int knotsToKmH(int velocity){
+float knotsToKmH(float velocity){
     return velocity*1.852;
 }
 
