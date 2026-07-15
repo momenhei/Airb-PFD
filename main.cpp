@@ -33,11 +33,29 @@ static float horizonRotation=90.0f;
 static float horizonRadius=0.0f;
 static float speed=0.0;
 static int altitude=0;
-static std::string gpsTime;
-static std::string gpsDate;
 
 static int gpsFileDescriptor=-1;
 static std::string gpsText = "Warte auf GPS";
+
+struct GPSData
+{
+    int utcHour;
+    int utcMinute;
+    int utcSecond;
+
+    int day;
+    int month;
+    int year;
+
+    bool summerTime;
+
+    std::string utcTime;	    // "HH:MM:SS"   (GPS in UTC)
+    std::string localTime;	    // "HH:MM:SS"   (CET/CEST)
+    std::string date;		    // "DD.MM.YYYY" (GPS)
+    std::string localDate;	    // "DD.MM.YYYY" (Germany)
+    std::string weekday;	    // Wochentag    
+    std::string localWeekday;   // Wochentag    
+};
 
 int openSerialPort(const char* name){
     int fileDescriptor;
@@ -93,20 +111,170 @@ float knotsToKmH(float velocity){
     return velocity*1.852;
 }
 
+//Calender-logic
+std::string weekdayName(int wd) {
+    static const std::array<std::string, 7> names = {
+        "Sonntag",
+		"Montag",
+		"Dienstag",
+		"Mittwoch",
+        "Donnerstag",
+		"Freitag",
+		"Samstag"
+    };
+    return names[wd];
+}
+
+bool isLeapYear(int y) {
+	return ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0));
+}
+
+int daysInMonthOf(int y, int m) {
+    static const int daysPerMonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
+	if (m == 2 && isLeapYear(y))
+		return 29;
+    return daysPerMonth[m - 1];
+}
+
+int lastSundayOfMonth(int y, int m) {
+    int lastDay = daysInMonthOf(y, m);
+    int wd = dayOfWeek(y, m, lastDay); // 0 = Sonntag
+    return lastDay - wd;
+}
+
+// EU-Regel: Umstellung jeweils um 01:00 UTC.
+// Letzter Sonntag im März -> Sommerzeit (CEST, UTC+2)
+// Letzter Sonntag im Oktober -> Winterzeit (CET, UTC+1)
+bool isSummerTime(int y, int m, int d, int hourUTC) {
+    if (m < 3 || m > 10) return false;
+    if (m > 3 && m < 10) return true;
+
+    if (m == 3) {
+        int marchLastSunday = lastSundayOfMonth(y, 3);
+        if (d > marchLastSunday) return true;
+        if (d < marchLastSunday) return false;
+        return hourUTC >= 1;
+    }
+    // m == 10
+    int octLastSunday = lastSundayOfMonth(y, 10);
+    if (d < octLastSunday) return true;
+    if (d > octLastSunday) return false;
+    return hourUTC < 1;
+}
+
+// Sakamoto-Algorithm: 0 = Sonntag, 1= Montag, usw.
+int dayOfWeek(int y, int m, int d) {
+    static const int t[] = {0,3,2,5,0,3,5,1,4,6,2,4};
+	if (m < 3){
+		y -= 1;
+	}
+    return (y + y/4 - y/100 + y/400 + t[m - 1] + d) % 7;
+}
+
+void parseTime(const std::string& timeField)
+{
+	if (timeField.length() < 6)
+		return;
+	
+		utcHour 	= std::stoi(timeField.substr(0,2));
+		utcMinute 	= std::stoi(timeField.substr(2,2));
+		utcSecond	= std::stoi(timeField.substr(4,2));
+		
+		utcTime 	= timeField.substr(0,2) + ":" +
+					  timeField.substr(2,2) + ":" +
+					  timeField.substr(4,2);
+}
+
+void parseDate(const std::string& dateField)
+{
+	if (dateField.length() < 6)
+		return;
+
+		day		= std::stoi(dateField.substr(0,2));
+		month	= std::stoi(dateField.substr(2,4));
+		year	= 2000 + std::stoi(dateField.substr(4,6));
+		
+		date    = dateField.substr(0,2) + "." +
+				  dateField.substr(2,2) + ".20" +
+				  dateField.substr(4,2);	
+}
+
+void updateWeekdayAndLocalTime() {
+     // Prüfen, ob bereits gültige GPS-Daten vorhanden sind
+    if (day == 0 || month == 0 || year == 0 ||
+        utcHour < 0 || utcMinute < 0 || utcSecond < 0)
+    {
+        return;
+    }
+	
+    isSummerTime = isSommerzeit(year, month, day, utcHour);
+    // CEST = UTC+2, CET = UTC+1
+	int offset = isSummerTime ? 2 : 1;
+
+    int localHour  = utcHour + offset;
+    int localDay   = day;
+    int localMonth = month;
+    int localYear  = year;
+
+	int wd = dayOfWeek(year, month, day);
+    weekday = weekdayName(wd);
+    
+	// Tagesüberlauf behandeln (z.B. 23:xx UTC + 1h/2h -> nächster Tag)
+    if (localHour >= 24) {
+        localHour -= 24;
+        localDay += 1;
+        if (localDay > daysInMonthOf(localYear, localMonth)) {
+            localDay = 1;
+            localMonth += 1;
+            if (localMonth > 12) {
+                localMonth = 1;
+                localYear += 1;
+            }
+        }
+    }
+
+	// Lokales Datum speichern
+    localDate =
+        (localDay < 10 ? "0" : "") + std::to_string(localDay) + "." +
+        (localMonth < 10 ? "0" : "") + std::to_string(localMonth) + "." +
+        std::to_string(localYear);
+
+    // Wochentag anhand des lokalen Datums berechnen
+    int wd = dayOfWeek(localYear, localMonth, localDay);
+
+    localWeekday = weekdayName(wd);
+	
+    char buffer[9];
+
+	std::snprintf(
+		buffer,
+		sizeof(buffer),
+		"%02d:%02d:%02d",
+		localHour,
+		utcMinute,
+		utcSecond
+	);
+
+	localTime = buffer;
+}
+
 void filterData(){
     if (gpsText.compare(0,6,"$GPRMC")==0){
         std::string copy=gpsText;
         size_t pos;
         int i=0;
         while ((pos = copy.find(",")) != std::string::npos){
-            std::string tmp = copy.substr(0,pos);
+            std::string field = copy.substr(0,pos);
             copy.erase(0, pos+1);
             switch(i){
             case 1:  //UTC of position
-                gpsTime = tmp.substr(0,2)+":"+tmp.substr(2,2)+":"+tmp.substr(4,2);
+                parseTime(field);
                 break;
             case 2:  //Position status (A = data valid, V = data invalid)
-                
+                if(field != "A")
+                {
+                    return;
+                }
                 break;
             case 3:  //Latitude (DDmm.mm)
                 
@@ -131,8 +299,8 @@ void filterData(){
                 
                 break;
             case 9:  //Date: dd/mm/yy
-                gpsDate = tmp.substr(0,2)+"-"+tmp.substr(2,2)+"-"+tmp.substr(4,2);
-                break;
+                parseDate(field);
+				break;
             case 10: //Magnetic variation, degrees
                 
                 break;
@@ -145,6 +313,8 @@ void filterData(){
             }
             i++;
         }
+        updateWeekdayAndLocalTime();
+
     }
 }
 
@@ -240,16 +410,16 @@ void renderText(){
     
   //SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
   //SDL_RenderDebugText(renderer, 192-strlen(t.date.c_str())*3.5,       4, t.date.c_str());
-    SDL_RenderDebugText(renderer, 192-8*3.5,       4, gpsTime.c_str());
+    SDL_RenderDebugText(renderer, 192-8*3.5,       4, localTime.c_str());
   
   //SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");  
   //std::string timeStr = getTimeString();
   //SDL_RenderDebugText(renderer, 268.8 - timeStr.length()*3.5, 4, timeStr.c_str());   
-    SDL_RenderDebugText(renderer, 268.8 - 2*3.5, 4, "WD");
+    SDL_RenderDebugText(renderer, 268.8 - 2*3.5, 4, localWeekday.c_str());
 
   //SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
   //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
-    SDL_RenderDebugText(renderer, 345.6-gpsDate.length()*3.5,     4, gpsDate.c_str());
+    SDL_RenderDebugText(renderer, 345.6-localDate.length()*3.5,     4, localDate.c_str());
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
 }
