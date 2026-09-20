@@ -58,6 +58,28 @@ int readRegisters(int fileDescriptor, uint8_t reg, uint8_t* buffer, size_t size)
     return 0;
 }
 
+int initMpu6050(int fileDescriptor){
+    writeRegister(fileDescriptor, MPU6050_REG_PWR_MGMT_1, 0x80); // Reset
+    SDL_Delay(100);
+
+    if (writeRegister(fileDescriptor, MPU6050_REG_PWR_MGMT_1, 0x01) != 0){ // aufwecken, Takt von Gyro X PLL
+        SDL_Log("Failed to wake up MPU6050");
+        return -1;
+    }
+    SDL_Delay(100);
+
+    uint8_t powerManagement = 0;
+    readRegisters(fileDescriptor, MPU6050_REG_PWR_MGMT_1, &powerManagement, 1);
+    SDL_Log("PWR_MGMT_1: 0x%02X (0x01 = wach, 0x40 = Sleep)", powerManagement);
+
+    writeRegister(fileDescriptor, MPU6050_REG_SMPLRT_DIV, 0x07);   // 1kHz / (1+7) = 125Hz
+    writeRegister(fileDescriptor, MPU6050_REG_CONFIG, 0x03);       // Tiefpass ~44Hz
+    writeRegister(fileDescriptor, MPU6050_REG_GYRO_CONFIG, 0x00);  // +-250 deg/s
+    writeRegister(fileDescriptor, MPU6050_REG_ACCEL_CONFIG, 0x00); // +-2g
+
+    return 0;
+}
+
 int openI2C(const char* name, int address){
     int fileDescriptor;
     fileDescriptor = open(name, O_RDWR);
@@ -82,17 +104,10 @@ int openI2C(const char* name, int address){
         SDL_Log("Unexpected WHO_AM_I: 0x%02X (Clone?)", whoAmI); // nur Warnung
     }
 
-    if (writeRegister(fileDescriptor, MPU6050_REG_PWR_MGMT_1, 0x01) != 0){ // aufwecken, Takt von Gyro X PLL
-        SDL_Log("Failed to wake up MPU6050");
+    if (initMpu6050(fileDescriptor) != 0){
         close(fileDescriptor);
         return -1;
     }
-    SDL_Delay(100);
-
-    writeRegister(fileDescriptor, MPU6050_REG_SMPLRT_DIV, 0x07);   // 1kHz / (1+7) = 125Hz
-    writeRegister(fileDescriptor, MPU6050_REG_CONFIG, 0x03);       // Tiefpass ~44Hz
-    writeRegister(fileDescriptor, MPU6050_REG_GYRO_CONFIG, 0x00);  // +-250 deg/s
-    writeRegister(fileDescriptor, MPU6050_REG_ACCEL_CONFIG, 0x00); // +-2g
 
     return fileDescriptor;
 }
@@ -107,12 +122,31 @@ Uint32 update(void* userdata, SDL_TimerID timerID, Uint32 interval){
         return interval;
     }
 
-    if (readRegisters(imuFileDescriptor, MPU6050_REG_ACCEL_XOUT_H, buffer, sizeof(buffer)) != 0){
+    static int errorCount = 0;
+    bool readOk = readRegisters(imuFileDescriptor, MPU6050_REG_ACCEL_XOUT_H, buffer, sizeof(buffer)) == 0;
+
+    bool allZero = true;
+    for (size_t i = 0; readOk && i < sizeof(buffer); i++){
+        if (buffer[i] != 0){
+            allZero = false;
+            break;
+        }
+    }
+
+    if (!readOk || allZero){ // Lesefehler oder Sensor schlaeft (z.B. nach Spannungseinbruch)
         SDL_LockMutex(imuMutex);
         imuData.valid = false;
         SDL_UnlockMutex(imuMutex);
+
+        errorCount++;
+        if (errorCount >= 10){ // ca. 0,5s ohne gueltige Daten -> komplett neu initialisieren
+            SDL_Log("MPU6050 %s, initialisiere neu", readOk ? "liefert nur Nullen" : "antwortet nicht");
+            initMpu6050(imuFileDescriptor);
+            errorCount = 0;
+        }
         return interval;
     }
+    errorCount = 0;
 
     int16_t raw[7];
     for (int i = 0; i < 7; i++){
