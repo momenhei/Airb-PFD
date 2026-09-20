@@ -31,6 +31,12 @@
 #define VELOCITY_DECAY  0.995f // zieht die Geschwindigkeit langsam gegen 0 (gegen Drift)
 #define CALIBRATION_SAMPLES 200
 
+// Einbaulage: IMU haengt im Gehaeuse auf dem Kopf -> 180 Grad um die X-Achse drehen
+#define MOUNT_UPSIDE_DOWN 1
+// Offsets
+#define ROLL_OFFSET  0.0f
+#define PITCH_OFFSET 0.0f
+
 struct ImuData{
     float accelX, accelY, accelZ; // g
     float gyroX, gyroY, gyroZ;    // deg/s
@@ -196,14 +202,21 @@ Uint32 update(void* userdata, SDL_TimerID timerID, Uint32 interval){
     data.gyroY = raw[5] / GYRO_SCALE - gyroBiasY;
     data.gyroZ = raw[6] / GYRO_SCALE - gyroBiasZ;
 
+    if (MOUNT_UPSIDE_DOWN){
+        data.accelY = -data.accelY; // 180 Grad um X: Y und Z drehen sich um
+        data.accelZ = -data.accelZ;
+        data.gyroY  = -data.gyroY;
+        data.gyroZ  = -data.gyroZ;
+    }
+
     float dt = interval / 1000.0f;
 
     // Lage: Gyro integrieren, langsam durch die Erdbeschleunigung korrigieren
     static float filteredRoll = 0.0f;
     static float filteredPitch = 0.0f;
     static bool filterInitialised = false;
-    float accelRoll  = atan2f(data.accelY, data.accelZ) * RAD_TO_DEG;
-    float accelPitch = atan2f(-data.accelX, sqrtf(data.accelY*data.accelY + data.accelZ*data.accelZ)) * RAD_TO_DEG;
+    float accelRoll  = atan2f(data.accelY, data.accelZ) * RAD_TO_DEG - ROLL_OFFSET;
+    float accelPitch = atan2f(-data.accelX, sqrtf(data.accelY*data.accelY + data.accelZ*data.accelZ)) * RAD_TO_DEG - PITCH_OFFSET;
     if (!filterInitialised){
         filteredRoll = accelRoll;
         filteredPitch = accelPitch;
