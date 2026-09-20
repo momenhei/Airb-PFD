@@ -25,11 +25,20 @@
 #define GYRO_SCALE  131.0f   // LSB/(deg/s) bei +-250 deg/s
 #define RAD_TO_DEG  (180.0f / 3.14159265f)
 
+#define GYRO_WEIGHT     0.98f  // Komplementaerfilter: Anteil des Gyros
+#define GRAVITY         9.81f  // m/s^2
+#define ACCEL_DEADBAND  0.15f  // m/s^2, darunter wird Rauschen ignoriert
+#define VELOCITY_DECAY  0.995f // zieht die Geschwindigkeit langsam gegen 0 (gegen Drift)
+#define CALIBRATION_SAMPLES 200
+
 struct ImuData{
     float accelX, accelY, accelZ; // g
     float gyroX, gyroY, gyroZ;    // deg/s
     float temperature;            // deg C
-    float roll, pitch;            // deg (nur aus Beschleunigung)
+    float roll, pitch;            // deg (Komplementaerfilter)
+    float velocityForward;        // m/s, horizontal
+    float velocityRight;          // m/s, horizontal
+    float speed;                  // m/s, Betrag der Horizontalgeschwindigkeit
     bool valid;
 };
 
@@ -39,6 +48,7 @@ static SDL_Mutex *imuMutex = NULL;
 static SDL_TimerID imuTimer = 0;
 static int imuFileDescriptor = -1;
 static ImuData imuData{};
+static float gyroBiasX = 0.0f, gyroBiasY = 0.0f, gyroBiasZ = 0.0f; // deg/s
 
 int writeRegister(int fileDescriptor, uint8_t reg, uint8_t value){
     uint8_t buffer[2] = {reg, value};
@@ -116,6 +126,30 @@ void closeI2C(int fileDescriptor){
     close(fileDescriptor);
 }
 
+void calibrateGyro(int fileDescriptor){
+    uint8_t buffer[14];
+    float sumX = 0.0f, sumY = 0.0f, sumZ = 0.0f;
+    int samples = 0;
+
+    SDL_Log("Kalibriere Gyro, Sensor nicht bewegen");
+    for (int i = 0; i < CALIBRATION_SAMPLES; i++){
+        if (readRegisters(fileDescriptor, MPU6050_REG_ACCEL_XOUT_H, buffer, sizeof(buffer)) == 0){
+            sumX += (int16_t)((buffer[8]  << 8) | buffer[9])  / GYRO_SCALE;
+            sumY += (int16_t)((buffer[10] << 8) | buffer[11]) / GYRO_SCALE;
+            sumZ += (int16_t)((buffer[12] << 8) | buffer[13]) / GYRO_SCALE;
+            samples++;
+        }
+        SDL_Delay(5);
+    }
+
+    if (samples > 0){
+        gyroBiasX = sumX / samples;
+        gyroBiasY = sumY / samples;
+        gyroBiasZ = sumZ / samples;
+    }
+    SDL_Log("Gyro Bias: X:%.2f Y:%.2f Z:%.2f deg/s", gyroBiasX, gyroBiasY, gyroBiasZ);
+}
+
 Uint32 update(void* userdata, SDL_TimerID timerID, Uint32 interval){
     uint8_t buffer[14]; // Accel XYZ, Temp, Gyro XYZ je 2 Byte
     if (imuFileDescriptor < 0){
@@ -158,11 +192,48 @@ Uint32 update(void* userdata, SDL_TimerID timerID, Uint32 interval){
     data.accelY = raw[1] / ACCEL_SCALE;
     data.accelZ = raw[2] / ACCEL_SCALE;
     data.temperature = raw[3] / 340.0f + 36.53f;
-    data.gyroX = raw[4] / GYRO_SCALE;
-    data.gyroY = raw[5] / GYRO_SCALE;
-    data.gyroZ = raw[6] / GYRO_SCALE;
-    data.roll  = atan2f(data.accelY, data.accelZ) * RAD_TO_DEG;
-    data.pitch = atan2f(-data.accelX, sqrtf(data.accelY*data.accelY + data.accelZ*data.accelZ)) * RAD_TO_DEG;
+    data.gyroX = raw[4] / GYRO_SCALE - gyroBiasX;
+    data.gyroY = raw[5] / GYRO_SCALE - gyroBiasY;
+    data.gyroZ = raw[6] / GYRO_SCALE - gyroBiasZ;
+
+    float dt = interval / 1000.0f;
+
+    // Lage: Gyro integrieren, langsam durch die Erdbeschleunigung korrigieren
+    static float filteredRoll = 0.0f;
+    static float filteredPitch = 0.0f;
+    static bool filterInitialised = false;
+    float accelRoll  = atan2f(data.accelY, data.accelZ) * RAD_TO_DEG;
+    float accelPitch = atan2f(-data.accelX, sqrtf(data.accelY*data.accelY + data.accelZ*data.accelZ)) * RAD_TO_DEG;
+    if (!filterInitialised){
+        filteredRoll = accelRoll;
+        filteredPitch = accelPitch;
+        filterInitialised = true;
+    }
+    filteredRoll  = GYRO_WEIGHT * (filteredRoll  + data.gyroX * dt) + (1.0f - GYRO_WEIGHT) * accelRoll;
+    filteredPitch = GYRO_WEIGHT * (filteredPitch + data.gyroY * dt) + (1.0f - GYRO_WEIGHT) * accelPitch;
+    data.roll = filteredRoll;
+    data.pitch = filteredPitch;
+
+    // Beschleunigung in die Horizontalebene drehen (Erdbeschleunigung faellt dabei raus)
+    float rollRad = filteredRoll / RAD_TO_DEG;
+    float pitchRad = filteredPitch / RAD_TO_DEG;
+    float sinRoll = sinf(rollRad), cosRoll = cosf(rollRad);
+    float sinPitch = sinf(pitchRad), cosPitch = cosf(pitchRad);
+
+    float accelForward = (data.accelX * cosPitch + data.accelY * sinPitch * sinRoll + data.accelZ * sinPitch * cosRoll) * GRAVITY;
+    float accelRight   = (data.accelY * cosRoll - data.accelZ * sinRoll) * GRAVITY;
+
+    if (fabsf(accelForward) < ACCEL_DEADBAND) accelForward = 0.0f; // Rauschen unterdruecken
+    if (fabsf(accelRight) < ACCEL_DEADBAND)   accelRight = 0.0f;
+
+    static float velocityForward = 0.0f;
+    static float velocityRight = 0.0f;
+    velocityForward = velocityForward * VELOCITY_DECAY + accelForward * dt;
+    velocityRight   = velocityRight   * VELOCITY_DECAY + accelRight * dt;
+
+    data.velocityForward = velocityForward;
+    data.velocityRight = velocityRight;
+    data.speed = sqrtf(velocityForward*velocityForward + velocityRight*velocityRight);
     data.valid = true;
 
     SDL_LockMutex(imuMutex);
@@ -185,6 +256,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[]){
 
     imuMutex = SDL_CreateMutex();
     imuFileDescriptor = openI2C("/dev/i2c-1", MPU6050_ADDRESS);
+    if (imuFileDescriptor >= 0){
+        calibrateGyro(imuFileDescriptor); // Sensor dabei ruhig liegen lassen
+    }
 
     imuTimer = SDL_AddTimer(50, update, nullptr); // 20Hz
     return SDL_APP_CONTINUE;
@@ -208,6 +282,8 @@ SDL_AppResult SDL_AppIterate(void *appstate){
         SDL_RenderDebugTextFormat(renderer, 10, 34, "Temp [C]     %6.1f", data.temperature);
         SDL_RenderDebugTextFormat(renderer, 10, 58, "Roll:  %7.1f deg", data.roll);
         SDL_RenderDebugTextFormat(renderer, 10, 70, "Pitch: %7.1f deg", data.pitch);
+        SDL_RenderDebugTextFormat(renderer, 10, 94, "Speed [m/s] vor:%6.2f rechts:%6.2f", data.velocityForward, data.velocityRight);
+        SDL_RenderDebugTextFormat(renderer, 10, 106, "Betrag:     %6.2f m/s (%5.1f km/h) - driftet!", data.speed, data.speed * 3.6f);
     }
 
     SDL_RenderPresent(renderer);
