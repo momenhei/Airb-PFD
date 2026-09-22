@@ -68,6 +68,7 @@
 
 // ---------------- Geschwindigkeitsquelle ----------------
 #define GPS_TIMEOUT_MS 2000 // ohne gueltigen $GPRMC-Fix laenger als das -> IMU als Fallback
+#define ALTITUDE_IN_FEET 0  // 0 = Meter, 1 = Fuss fuer das Hoehenband
 
 // Rechnet Sensorachsen in Flugzeugachsen um (X vorne, Z oben)
 void applyMount(float& x, float& y, float& z){
@@ -139,6 +140,9 @@ static std::string gpsText = "Warte auf GPS";
 static float gpsSpeed = 0.0f;       // km/h, nur gueltig wenn gpsSpeedTicks aktuell
 static Uint64 gpsSpeedTicks = 0;    // SDL_GetTicks() des letzten gueltigen Fixes
 static bool gpsSpeedReceived = false;
+static float gpsAltitude = 0.0f;    // m ueber Meeresspiegel aus $GPGGA
+static Uint64 gpsAltitudeTicks = 0; // SDL_GetTicks() der letzten gueltigen Hoehe
+static bool gpsAltitudeReceived = false;
 
 static SDL_Mutex *dataMutex = NULL;     // schuetzt GPS- und IMU-Daten (Timer-Thread <-> Render-Thread)
 static SDL_TimerID gpsTimer = 0;
@@ -673,6 +677,29 @@ void filterData(){
     }
 }
 
+// $GPGGA: 6 = Fix-Qualitaet (0 = kein Fix), 9 = Hoehe ueber Meeresspiegel, 10 = Einheit (M)
+void parseGGA(const std::string& line){
+    std::string fields[15];
+    int count = 0;
+    size_t start = 0;
+    while (count < 15){
+        size_t pos = line.find(',', start);
+        fields[count++] = line.substr(start, pos == std::string::npos ? std::string::npos : pos - start);
+        if (pos == std::string::npos) break;
+        start = pos + 1;
+    }
+    if (count < 11) return;
+    if (fields[6].empty() || fields[6] == "0") return; // kein Fix -> Zeitstempel veraltet
+    if (fields[9].empty()) return;
+    try{
+        gpsAltitude = std::stof(fields[9]);
+        gpsAltitudeTicks = SDL_GetTicks();
+        gpsAltitudeReceived = true;
+    }catch (const std::exception& e) {
+        // ungueltiges Feld -> ignorieren
+    }
+}
+
 Uint32 updateData(void* userdata, SDL_TimerID timerID, Uint32 interval){
     char buffer[256];
     static std::string serialBuffer;
@@ -682,18 +709,29 @@ Uint32 updateData(void* userdata, SDL_TimerID timerID, Uint32 interval){
     int n = read(gpsFileDescriptor, buffer, sizeof(buffer));
     if (n > 0){
 	    serialBuffer.append(buffer, n);
-	    size_t start;
-	    while ((start = serialBuffer.find("$GPRMC")) != std::string::npos){
-            size_t end = serialBuffer.find("\n", start);
-            if(end == std::string::npos){
-                break;
+	    size_t end;
+	    while ((end = serialBuffer.find("\n")) != std::string::npos){ // jede vollstaendige Zeile auswerten
+            std::string line = serialBuffer.substr(0, end);
+	        serialBuffer.erase(0, end+1);
+
+            size_t start = line.find("$GPRMC");
+            if (start != std::string::npos){
+                SDL_LockMutex(dataMutex);
+                gpsText = line.substr(start);
+                filterData();
+                SDL_UnlockMutex(dataMutex);
+                continue;
             }
-            SDL_LockMutex(dataMutex);
-            gpsText = serialBuffer.substr(start, end - start);
-            filterData();
-            SDL_UnlockMutex(dataMutex);
-	        serialBuffer.erase(0,end+1);
+            start = line.find("$GPGGA");
+            if (start != std::string::npos){
+                SDL_LockMutex(dataMutex);
+                parseGGA(line.substr(start));
+                SDL_UnlockMutex(dataMutex);
+            }
 	    }
+        if (serialBuffer.size() > 4096){ // Muell ohne Zeilenende nicht endlos sammeln
+            serialBuffer.clear();
+        }
     }
     return interval;
 }
@@ -704,6 +742,8 @@ void updateFromSensors(){
     ImuData imu = imuData;
     bool gpsOk = gpsSpeedReceived && (SDL_GetTicks() - gpsSpeedTicks) < GPS_TIMEOUT_MS;
     float gpsKmH = gpsSpeed;
+    bool gpsAltOk = gpsAltitudeReceived && (SDL_GetTicks() - gpsAltitudeTicks) < GPS_TIMEOUT_MS;
+    float gpsAltM = gpsAltitude;
     SDL_UnlockMutex(dataMutex);
 
     // Kuenstlicher Horizont aus Roll/Pitch
@@ -722,6 +762,11 @@ void updateFromSensors(){
         speedSource = SpeedSource::IMU;
     } else {
         speedSource = SpeedSource::None; // letzter Wert bleibt stehen (Pfeiltasten zum Testen)
+    }
+
+    // Hoehe aus GPS; ohne Fix bleibt der letzte Wert stehen (Bild auf/ab zum Testen)
+    if (gpsAltOk){
+        altitude = static_cast<int>(std::lround(ALTITUDE_IN_FEET ? gpsAltM * 3.28084f : gpsAltM));
     }
 }
 
