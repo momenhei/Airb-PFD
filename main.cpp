@@ -53,6 +53,10 @@
 
 #define GYRO_SIGN_X 1.0f // Drehrichtung des Gyros relativ zum Beschleunigungssensor. Pruefen mit Taste I: waehrend der Bewegung muss Gyro X dasselbe Vorzeichen haben. Normalerweise +1: Gyro und Beschleunigungssensor sitzen auf demselben Chip,
 #define GYRO_SIGN_Y 1.0f
+// Heading aus dem Gyro (Z = Hochachse). Nur Simulation, driftet mit der Zeit.
+// Rechtskurve muss den Wert erhoehen; wenn das Band falsch herum laeuft: Vorzeichen umdrehen
+#define HEADING_GYRO_SIGN -1.0f
+#define HEADING_DEADBAND   0.5f  // deg/s, darunter wird der Gyro ignoriert (weniger Drift im Stand)
 
 #define ACCEL_SIGN_X -1.0f // Vorzeichen der Beschleunigungs-X-Achse (vorne/hinten). Falscher Wert = Pitch bewegt sich erst richtig (Gyro) und kriecht dann langsam in die falsche Richtung
 
@@ -68,7 +72,6 @@
 
 // ---------------- Geschwindigkeitsquelle ----------------
 #define GPS_TIMEOUT_MS 2000 // ohne gueltigen $GPRMC-Fix laenger als das -> IMU als Fallback
-#define ALTITUDE_IN_FEET 0  // 0 = Meter, 1 = Fuss fuer das Hoehenband
 
 // Rechnet Sensorachsen in Flugzeugachsen um (X vorne, Z oben)
 void applyMount(float& x, float& y, float& z){
@@ -106,6 +109,7 @@ struct ImuData{
     float temperature;            // deg C
     float roll, pitch;            // deg (Komplementaerfilter)
     float accelRoll, accelPitch;  // deg, nur aus dem Beschleunigungssensor (Debug)
+    float heading;                // deg 0-360, aus Gyro Z integriert
     float velocityForward;        // m/s, horizontal
     float velocityRight;          // m/s, horizontal
     float speed;                  // m/s, Betrag der Horizontalgeschwindigkeit
@@ -133,6 +137,7 @@ static float horizonRadiusTrim=0.0f;   // manuelle Korrektur per W/S
 static float speed=0.0;
 static int altitude=0;
 static float heading = 0.0f; // 0-360°, 0 = Nord
+static float headingTrim = 0.0f; // manuelle Korrektur per Pfeil links/rechts
 static SpeedSource speedSource = SpeedSource::None;
 
 static int gpsFileDescriptor=-1;
@@ -154,6 +159,7 @@ static float mountTiltRoll = 0.0f, mountTiltPitch = 0.0f; // deg, fuer Debug-Anz
 static float gyroBiasX = 0.0f, gyroBiasY = 0.0f, gyroBiasZ = 0.0f; // deg/s
 static float imuVelocityForward = 0.0f; // m/s
 static float imuVelocityRight = 0.0f;   // m/s
+static float imuHeading = 0.0f;         // deg, integrierte Drehung um die Hochachse
 
 struct GPSData
 {
@@ -455,6 +461,13 @@ Uint32 updateImu(void* userdata, SDL_TimerID timerID, Uint32 interval){
     data.velocityForward = imuVelocityForward;
     data.velocityRight = imuVelocityRight;
     data.speed = sqrtf(imuVelocityForward*imuVelocityForward + imuVelocityRight*imuVelocityRight);
+    // Heading: Drehrate um die Hochachse aufintegrieren
+    float yawRate = HEADING_GYRO_SIGN * data.gyroZ;
+    if (fabsf(yawRate) < HEADING_DEADBAND) yawRate = 0.0f;
+    imuHeading = fmodf(imuHeading + yawRate * dt, 360.0f);
+    if (imuHeading < 0.0f) imuHeading += 360.0f;
+    data.heading = imuHeading;
+
     data.valid = true;
 
     imuData = data;
@@ -751,6 +764,10 @@ void updateFromSensors(){
         horizonRotation = 90.0f - HORIZON_ROLL_SIGN * imu.roll + horizonRotationTrim;
         float radius = HORIZON_PITCH_SIGN * imu.pitch / HORIZON_DEG_PER_UNIT + horizonRadiusTrim;
         horizonRadius = std::clamp(radius, -HORIZON_RADIUS_LIMIT, HORIZON_RADIUS_LIMIT);
+
+        // Heading aus dem Gyro + manuelle Korrektur
+        heading = fmodf(imu.heading + headingTrim, 360.0f);
+        if (heading < 0.0f) heading += 360.0f;
     }
 
     // Geschwindigkeit: GPS bevorzugt, sonst IMU
@@ -766,7 +783,7 @@ void updateFromSensors(){
 
     // Hoehe aus GPS; ohne Fix bleibt der letzte Wert stehen (Bild auf/ab zum Testen)
     if (gpsAltOk){
-        altitude = static_cast<int>(std::lround(ALTITUDE_IN_FEET ? gpsAltM * 3.28084f : gpsAltM));
+        altitude = static_cast<int>(std::lround(gpsAltM)); // Meter
     }
 }
 
@@ -1210,11 +1227,13 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
                 case SDLK_PAGEDOWN:
                     altitude -= 10;
                     break;
-                case SDLK_LEFT:
+                case SDLK_LEFT:         // Korrektur, wirkt zusaetzlich zum Gyro
+                    headingTrim -= 1.0f;
                     heading -= 1.0f;
                     if (heading < 0.0f) heading += 360.0f;
                     break;
                 case SDLK_RIGHT:
+                    headingTrim += 1.0f;
                     heading += 1.0f;
                     if (heading >= 360.0f) heading -= 360.0f;
                     break;
