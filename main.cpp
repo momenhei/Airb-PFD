@@ -20,7 +20,7 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 
-#define VERSION "0.5"
+#define VERSION "0.6"
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 
@@ -128,6 +128,7 @@ static float horizonRotationTrim=0.0f; // manuelle Korrektur per A/D
 static float horizonRadiusTrim=0.0f;   // manuelle Korrektur per W/S
 static float speed=0.0;
 static int altitude=0;
+static float heading = 0.0f; // 0-360°, 0 = Nord
 static SpeedSource speedSource = SpeedSource::None;
 
 static int gpsFileDescriptor=-1;
@@ -791,7 +792,7 @@ void renderText(){
     SDL_SetRenderScale(renderer, fWidth/384, fHeight/216);
     SDL_SetRenderDrawColor(renderer, 44, 255, 5, 255);
 
-    std::string speedStr = std::to_string(speed);
+    std::string speedStr = std::to_string(static_cast<int>(std::round(speed)));
     SDL_RenderDebugText(renderer, 38.4 -speedStr.length()*3.5, 4, speedStr.c_str());
     SDL_RenderDebugText(renderer, 38.4-strlen("km/h")*3.5,    14, "km/h");
 
@@ -809,18 +810,130 @@ void renderText(){
     
   //SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
   //SDL_RenderDebugText(renderer, 192-strlen(t.date.c_str())*3.5,       4, t.date.c_str());
-    SDL_RenderDebugText(renderer, 192-8*3.5,       4, localTime.c_str());
+    if (localTime.length() > 5) localTime.erase(5);                    // "HH:MM:SS" -> "HH:MM"
+    SDL_RenderDebugText(renderer, 192-localTime.length()*3.5,       4, localTime.c_str());
   
   //SDL_RenderDebugText(renderer, 268.8-strlen("CAT2")*3.5,    4, "CAT2");  
   //std::string timeStr = getTimeString();
   //SDL_RenderDebugText(renderer, 268.8 - timeStr.length()*3.5, 4, timeStr.c_str());   
-    SDL_RenderDebugText(renderer, 268.8 - 2*3.5, 4, localWeekday.c_str());
+    SDL_RenderDebugText(renderer, 268.8 - localWeekday.length()*3.5, 4, localWeekday.c_str());
 
   //SDL_RenderDebugText(renderer, 345.6-strlen("AP1")*3.5,     4, "AP1");
   //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
+    if (localDate.length() == 10) localDate.erase(6, 2);               // "DD.MM.YYYY" -> "DD.MM.YY"
     SDL_RenderDebugText(renderer, 345.6-localDate.length()*3.5,     4, localDate.c_str());
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
+}
+
+// Zeichnet ein vertikales "Band" mit beweglichen Strichen + Zahlen (für Speed & Höhe)
+// rect         = Hintergrundbox (re1/re2)
+// value        = aktueller Wert (z.B. speed oder altitude)
+// tickStep     = welcher Wertunterschied einem Strichabstand entspricht
+// ticksOnRight = true: Striche/Zahlen rechts von der Box (Speed), false: links (Höhe)
+void renderVerticalTape(const SDL_FRect& rect, float value, float tickStep, bool ticksOnRight, float minValue = -1e9f, bool invertDirection = false){
+    float spacing = rect.h / 6.0f;
+    float center  = rect.y + rect.h / 2.0f;
+    float offset  = fmodf(value, tickStep) * spacing / tickStep;
+    int dir = invertDirection ? -1 : 1;
+
+    float tickLen    = rect.w * 0.4f;
+    float tickStartX = ticksOnRight ? rect.x + rect.w : rect.x;
+    float tickEndX   = ticksOnRight ? tickStartX - tickLen : tickStartX + tickLen;
+
+    for (int i = -3; i <= 3; i++) {
+        float y = center + dir * i * spacing + offset;
+        if (y < rect.y || y > rect.y + rect.h) continue;
+
+        float tickValue = value - fmodf(value, tickStep) + i * tickStep;
+        if (tickValue < minValue) continue;
+
+        SDL_RenderLine(renderer, tickStartX, y, tickEndX, y);
+
+        std::string label = std::to_string(static_cast<int>(std::round(tickValue)));
+        float textX = ticksOnRight ? tickEndX - label.length()*14 - 4 : tickEndX + 4;
+        SDL_SetRenderScale(renderer, 2.0f, 2.0f);
+        SDL_RenderDebugText(renderer, textX/2.0f, (y-6)/2.0f, label.c_str());
+        SDL_SetRenderScale(renderer, 1, 1);
+    }
+
+    // Live-Wert direkt am Marker, immer aktuell
+    std::string liveLabel = std::to_string(static_cast<int>(std::round(value)));
+    float liveX = ticksOnRight ? tickStartX - liveLabel.length()*14 - 20 : tickStartX + 20;
+    SDL_SetRenderScale(renderer, 2.0f, 2.0f);
+    SDL_RenderDebugText(renderer, liveX/2.0f, (center-6)/2.0f, liveLabel.c_str());
+    SDL_SetRenderScale(renderer, 1, 1);
+
+    // Marker-Dreieck (ortsfest in der Mitte, darf über den Rand ragen)
+    float apexX = ticksOnRight ? rect.x + rect.w : rect.x;
+    float baseX = ticksOnRight ? apexX + rect.w*0.3f : apexX - rect.w*0.3f;
+    SDL_Vertex tri[] = {
+        {{apexX, center}, {255,255,255,255}},
+        {{baseX, center + rect.h*0.02f}, {255,255,255,255}},
+        {{baseX, center - rect.h*0.02f}, {255,255,255,255}}
+    };
+    SDL_RenderGeometry(renderer, NULL, tri, 3, NULL, 0);
+}
+
+// Wandelt einen Grad-Wert (Vielfaches von 45) in eine Himmelsrichtung um,
+// alle anderen Werte werden weiterhin als Zahl angezeigt
+std::string headingLabel(int deg){
+    deg = ((deg % 360) + 360) % 360; // auf 0-359 normalisieren
+    switch(deg){
+        case 0:   return "N";
+        case 45:  return "NO";
+        case 90:  return "O";
+        case 135: return "SO";
+        case 180: return "S";
+        case 225: return "SW";
+        case 270: return "W";
+        case 315: return "NW";
+        default:  return std::to_string(deg);
+    }
+}
+
+// Zeichnet ein horizontales Band mit beweglichen Strichen + Zahlen (für den Kurs)
+void renderHorizontalTape(const SDL_FRect& rect, float value, float tickStep){
+    float spacing = rect.w / 6.0f;
+    float center  = rect.x + rect.w / 2.0f;
+    float offset  = fmodf(value, tickStep) * spacing / tickStep;
+
+    float tickLen  = rect.h * 0.4f;
+    float tickTopY = rect.y;
+    float tickBotY = tickTopY + tickLen;
+
+    for (int i = -3; i <= 3; i++) {
+        float x = center + i * spacing - offset;
+
+        // Strich/Zahl überspringen, wenn er die Box verlassen würde
+        if (x < rect.x || x > rect.x + rect.w) continue;
+
+        SDL_RenderLine(renderer, x, tickTopY, x, tickBotY);
+
+        float tickValue = value - fmodf(value, tickStep) + i * tickStep;
+        int wrapped = (static_cast<int>(std::round(tickValue)) % 360 + 360) % 360;
+        std::string label = headingLabel(wrapped);
+
+        SDL_SetRenderScale(renderer, 2.0f, 2.0f);
+        SDL_RenderDebugText(renderer, (x - label.length()*7)/2.0f, (tickBotY+4)/2.0f, label.c_str());
+        SDL_SetRenderScale(renderer, 1, 1);
+    }
+
+    // Live-Gradzahl direkt über dem Marker, immer aktuell (ungerundet auf tickStep)
+    int liveHeading = (static_cast<int>(std::round(value)) % 360 + 360) % 360;
+    std::string liveLabel = std::to_string(liveHeading);
+    float liveY = rect.y - rect.h*0.15f - 20; // etwas oberhalb des Marker-Dreiecks
+    SDL_SetRenderScale(renderer, 2.0f, 2.0f);
+    SDL_RenderDebugText(renderer, (center - liveLabel.length()*7)/2.0f, liveY/2.0f, liveLabel.c_str());
+    SDL_SetRenderScale(renderer, 1, 1);
+
+    // Marker-Dreieck oben in der Mitte, zeigt nach unten
+    SDL_Vertex tri[] = {
+        {{center, rect.y}, {255,255,255,255}},
+        {{center - rect.w*0.01f, rect.y - rect.h*0.15f}, {255,255,255,255}},
+        {{center + rect.w*0.01f, rect.y - rect.h*0.15f}, {255,255,255,255}}
+    };
+    SDL_RenderGeometry(renderer, NULL, tri, 3, NULL, 0);
 }
 
 void renderIndicators(){
@@ -834,28 +947,9 @@ void renderIndicators(){
     SDL_RenderFillRect( renderer, &re3);
 
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-    
-    // speed indicator
-    float spacing = barHeight /6.0f;
-    float center = fHeight /2.0f;
-    float offset=fmodf(speed,5.0f)*spacing/5;
-    for (int i=-3; i<3; i++) {
-        float y = center + i * spacing + offset;
-        SDL_RenderLine(renderer,
-            5*fWidth/24,
-            y,
-            17*fWidth/96,
-            y);
-    }
-    SDL_Vertex tri[] = {
-        {{5*fWidth/24,fHeight/2},{255,255,255,255}},
-        {{5*fWidth/24+fWidth/75,fHeight/2+fHeight/100},{255,255,255,255}},
-        {{5*fWidth/24+fWidth/75,fHeight/2-fHeight/100},{255,255,255,255}}
-    };
-    SDL_RenderGeometry(renderer, NULL, tri, 3, NULL, 0);
-
-    //altitude indicator
-    // TO-DO
+    renderVerticalTape(re1, speed, 10.0f, true, 0.0f, true);
+    renderVerticalTape(re2, (float)altitude, 100.0f, false, -1e9f, true);
+    renderHorizontalTape(re3, heading, 15.0f);
 }
 
 // Debug-Anzeige der IMU (Taste I)
@@ -974,6 +1068,20 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event){
                     break;
                 case SDLK_DOWN:
                     speed -= 1.0;
+                    break;
+                case SDLK_PAGEUP:
+                    altitude += 10;
+                    break;
+                case SDLK_PAGEDOWN:
+                    altitude -= 10;
+                    break;
+                case SDLK_LEFT:
+                    heading -= 1.0f;
+                    if (heading < 0.0f) heading += 360.0f;
+                    break;
+                case SDLK_RIGHT:
+                    heading += 1.0f;
+                    if (heading >= 360.0f) heading -= 360.0f;
                     break;
             }
             break;
