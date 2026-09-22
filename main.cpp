@@ -21,7 +21,7 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 
-#define VERSION "0.6"
+#define VERSION "1.0"
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 
