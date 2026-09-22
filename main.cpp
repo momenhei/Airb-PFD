@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <ctime>
 #include <string>
+#include <vector>
 #include <cstring>
 #include <cstdio>
 #include <cstdint>
@@ -62,7 +63,7 @@
 // ---------------- IMU -> Kuenstlicher Horizont ----------------
 #define HORIZON_ROLL_SIGN     1.0f   // Rechtskurve -> Horizont dreht gegen den Uhrzeigersinn
 #define HORIZON_PITCH_SIGN   -1.0f   // Nase hoch -> Boden wandert nach unten
-#define HORIZON_DEG_PER_UNIT 40.0f   // Grad Pitch fuer eine Verschiebung um aHSize
+#define HORIZON_DEG_PER_UNIT 60.0f   // Grad Pitch fuer eine Verschiebung um aHSize (passend zur Pitch-Leiter: 10 Grad = aHSize/6)
 #define HORIZON_RADIUS_LIMIT 1.5f
 
 // ---------------- Geschwindigkeitsquelle ----------------
@@ -117,9 +118,11 @@ static SDL_Renderer *renderer = NULL;
 static float fWidth  = 0.0f;
 static float fHeight = 0.0f;
 static float aHSize =  0.0f;
+static float aHHeight = 0.0f;
 
-static constexpr int vertexCount = 36;
-static std::unique_ptr<SDL_Vertex[]> mask;
+//static constexpr int vertexCount = 36;
+//static std::unique_ptr<SDL_Vertex[]> mask;
+static std::vector<SDL_Vertex> mask;
 static std::unique_ptr<SDL_Vertex[]> horizon;
 
 static float horizonRotation=90.0f;
@@ -742,37 +745,118 @@ void updateHorizon(){
     calculateHorizonVertex(2,90+horizonRotation,fWidth);
 }
 
-void updateMask(){ //creating vertices for mask to create window for artificial horizon
-    //calculating sclaing variables
-    int width;
-    int height;
+SDL_FPoint horizonPoint(float localX, float localY){
+    float pitchOffset = aHSize*horizonRadius;  // gleicher Wert wie in calculateHorizonVertex
+    float y = localY + pitchOffset;
+    float rot = degreeToRad(horizonRotation - 90.0f);
+    float rx = localX*cos(rot) - y*sin(rot);
+    float ry = localX*sin(rot) + y*cos(rot);
+    return { rx + fWidth/2, ry + fHeight/2 };
+}
+
+void renderPitchLadder(){
+    const float stepPx  = aHSize/6.0f; // Pixelabstand zwischen zwei Strichen
+    const int   stepDeg = 10;          // Beschriftungsschritt
+    const float gap     = aHSize*0.06f; // Lücke in der Mitte (Platz fürs Flugzeug-Symbol)
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+    for (int i = -3; i <= 3; i++){
+        if (i == 0) continue; // die Horizontlinie selbst ist bereits der "0°"-Strich
+
+        // Striche werden zu den Rändern hin kürzer
+        float halfWidth = aHSize/4.0f - std::abs(i)*aHSize/22.0f;
+        if (halfWidth <= gap) continue; // zu kurz für sinnvolle Darstellung, überspringen
+
+        // Linkes Segment: von -halfWidth bis -gap
+        SDL_FPoint lp1 = horizonPoint(-halfWidth, i*stepPx);
+        SDL_FPoint lp2 = horizonPoint(-gap,        i*stepPx);
+        SDL_RenderLine(renderer, lp1.x, lp1.y, lp2.x, lp2.y);
+
+        // Rechtes Segment: von gap bis halfWidth
+        SDL_FPoint rp1 = horizonPoint(gap,        i*stepPx);
+        SDL_FPoint rp2 = horizonPoint(halfWidth,  i*stepPx);
+        SDL_RenderLine(renderer, rp1.x, rp1.y, rp2.x, rp2.y);
+
+        // Zahl jeweils außen an beiden Enden, gleiche Skalierung wie die Baender
+        std::string label = std::to_string(std::abs(i*stepDeg));
+        float scaleX = fWidth  / 384.0f;
+        float scaleY = fHeight / 216.0f;
+        float charW  = 8.0f * scaleX;          // reale Pixelbreite eines Debug-Zeichens
+        float charH  = 8.0f * scaleY;          // reale Pixelhoehe eines Debug-Zeichens
+        float pad    = charW * 0.5f;           // Abstand zwischen Strichende und Zahl
+        float textW  = label.length() * charW;
+
+        SDL_SetRenderScale(renderer, scaleX, scaleY);
+
+        // links: Zahl endet kurz vor dem Strich
+        SDL_FPoint textPosL = horizonPoint(-halfWidth - pad, i*stepPx);
+        SDL_RenderDebugText(renderer, (textPosL.x - textW)/scaleX, (textPosL.y - charH/2.0f)/scaleY, label.c_str());
+
+        // rechts: Zahl beginnt kurz nach dem Strich
+        SDL_FPoint textPosR = horizonPoint(halfWidth + pad, i*stepPx);
+        SDL_RenderDebugText(renderer, textPosR.x/scaleX, (textPosR.y - charH/2.0f)/scaleY, label.c_str());
+
+        SDL_SetRenderScale(renderer, 1, 1);
+    }
+
+     const float minorHalfWidth = aHSize/16.0f;
+    for (int i = -3; i <= 2; i++){
+        float minorPitch = (i + 0.5f) * stepPx;
+        SDL_FPoint mp1 = horizonPoint(-minorHalfWidth, minorPitch);
+        SDL_FPoint mp2 = horizonPoint( minorHalfWidth, minorPitch);
+        SDL_RenderLine(renderer, mp1.x, mp1.y, mp2.x, mp2.y);
+    }
+}
+
+void addArcFan(SDL_FPoint corner, SDL_FPoint circleCenter, float radius, float startDeg, float endDeg, int segments, SDL_FColor color){
+    float startRad = degreeToRad(startDeg);
+    float endRad   = degreeToRad(endDeg);
+    for (int i = 0; i < segments; i++){
+        float a0 = startRad + (endRad-startRad) * i     / segments;
+        float a1 = startRad + (endRad-startRad) * (i+1) / segments;
+        SDL_FPoint p0 = { circleCenter.x + radius*cos(a0), circleCenter.y + radius*sin(a0) };
+        SDL_FPoint p1 = { circleCenter.x + radius*cos(a1), circleCenter.y + radius*sin(a1) };
+        mask.push_back({{corner.x, corner.y}, color});
+        mask.push_back({{p0.x, p0.y}, color});
+        mask.push_back({{p1.x, p1.y}, color});
+    }
+}
+
+void updateMask(){
+    int width, height;
     SDL_GetWindowSize(window, &width, &height);
     fWidth  = static_cast<float>(width);
     fHeight = static_cast<float>(height);
-    aHSize  = 0.5f*std::min(fHeight,fWidth);       //size of Artificial Horizon
+    aHSize  = 0.5f*std::min(fHeight,fWidth);
+    aHHeight = aHSize * 1.25f;
     const float hSpacer = 0.5f*(fWidth-aHSize);
-    const float vSpacer = 0.5f*(fHeight-aHSize);
-    int idx = 0;
-    auto v = [&] (float x, float y){mask[idx].position.x=x; mask[idx].position.y=y;mask[idx].color= {0.0f, 0.0f, 0.0f, 1.0f}; idx++;};
-    auto tri = [&] (float x1, float y1, float x2, float y2, float x3, float y3) {v(x1,y1); v(x2,y2); v(x3,y3);};
-    auto rec = [&] (float x1, float y1, float x2, float y2) {tri(x1, y1, x1, y2, x2, y2); tri(x1, y1, x2, y2, x2, y1);};
+    const float vSpacer = 0.5f*(fHeight-aHHeight);
+    const float rTop    = aHSize/2.0f;
+    const float rBottom = aHSize/2.0f;
 
-    //left & right boundaries
+    mask.clear();
+    SDL_FColor black = {0.0f, 0.0f, 0.0f, 1.0f};
+    auto v   = [&](float x,float y){ mask.push_back({{x,y}, black}); };
+    auto tri = [&](float x1,float y1,float x2,float y2,float x3,float y3){ v(x1,y1); v(x2,y2); v(x3,y3); };
+    auto rec = [&](float x1,float y1,float x2,float y2){ tri(x1,y1,x1,y2,x2,y2); tri(x1,y1,x2,y2,x2,y1); };
+
+    // left & right boundaries
     rec(0.0f, 0.0f, hSpacer, fHeight);
     rec(fWidth, fHeight, fWidth-hSpacer, 0.0f);
-    
-    //top & bottom boundaries
+    // top & bottom boundaries
     rec(0.0f, 0.0f, fWidth, vSpacer);
     rec(fWidth, fHeight, 0.0f, fHeight-vSpacer);
 
-    //upper rounding
-    tri(fWidth-hSpacer, vSpacer +aHSize/6, fWidth-(hSpacer+aHSize/4), vSpacer, fWidth-hSpacer, vSpacer);
-    tri(hSpacer,        vSpacer + aHSize/6, hSpacer+ aHSize/4,         vSpacer, hSpacer,        vSpacer);
+    // oben: echter Halbkreis (beide Bögen teilen sich denselben Mittelpunkt)
+    addArcFan({hSpacer, vSpacer},               {hSpacer+rTop, vSpacer+rTop},               rTop, 180, 270, 12, black);
+    addArcFan({fWidth-hSpacer, vSpacer},        {fWidth-hSpacer-rTop, vSpacer+rTop},        rTop, 270, 360, 12, black);
 
-    //lower rounding
-    tri(fWidth-hSpacer, fHeight-(vSpacer + aHSize/6), fWidth-(hSpacer+aHSize/4), fHeight-vSpacer, fWidth-hSpacer, fHeight-vSpacer);
-    tri(hSpacer,        fHeight-(vSpacer + aHSize/6), hSpacer+ aHSize/4,         fHeight-vSpacer, hSpacer,        fHeight-vSpacer);
+    // unten: nur leicht abgerundet, Seiten bleiben ansonsten gerade
+    addArcFan({hSpacer, fHeight-vSpacer},               {hSpacer+rBottom, fHeight-vSpacer-rBottom},        rBottom,  90, 180, 8, black);
+    addArcFan({fWidth-hSpacer, fHeight-vSpacer},        {fWidth-hSpacer-rBottom, fHeight-vSpacer-rBottom}, rBottom,   0,  90, 8, black);
 }
+
 
 void renderDeviders(){
     float width=fWidth/5;
@@ -826,11 +910,6 @@ void renderText(){
     SDL_SetRenderScale(renderer, 1, 1);
 }
 
-// Zeichnet ein vertikales "Band" mit beweglichen Strichen + Zahlen (für Speed & Höhe)
-// rect         = Hintergrundbox (re1/re2)
-// value        = aktueller Wert (z.B. speed oder altitude)
-// tickStep     = welcher Wertunterschied einem Strichabstand entspricht
-// ticksOnRight = true: Striche/Zahlen rechts von der Box (Speed), false: links (Höhe)
 void renderVerticalTape(const SDL_FRect& rect, float value, float tickStep, bool ticksOnRight, float minValue = -1e9f, bool invertDirection = false){
     float spacing = rect.h / 6.0f;
     float center  = rect.y + rect.h / 2.0f;
@@ -841,30 +920,36 @@ void renderVerticalTape(const SDL_FRect& rect, float value, float tickStep, bool
     float tickStartX = ticksOnRight ? rect.x + rect.w : rect.x;
     float tickEndX   = ticksOnRight ? tickStartX - tickLen : tickStartX + tickLen;
 
+    //Skalierungsfaktor
+    float scaleX = fWidth  / 384.0f;
+    float scaleY = fHeight / 216.0f;
+    float charW  = 8.0f * scaleX; // reale Pixelbreite eines Debug-Zeichens bei dieser Skalierung
+
     for (int i = -3; i <= 3; i++) {
         float y = center + dir * i * spacing + offset;
         if (y < rect.y || y > rect.y + rect.h) continue;
 
         float tickValue = value - fmodf(value, tickStep) + i * tickStep;
         if (tickValue < minValue) continue;
-
+        
         SDL_RenderLine(renderer, tickStartX, y, tickEndX, y);
 
         std::string label = std::to_string(static_cast<int>(std::round(tickValue)));
-        float textX = ticksOnRight ? tickEndX - label.length()*14 - 4 : tickEndX + 4;
-        SDL_SetRenderScale(renderer, 2.0f, 2.0f);
-        SDL_RenderDebugText(renderer, textX/2.0f, (y-6)/2.0f, label.c_str());
+        float textX = ticksOnRight ? tickEndX - label.length()*charW - 4 : tickEndX + 4;
+
+        SDL_SetRenderScale(renderer, scaleX, scaleY);
+        SDL_RenderDebugText(renderer, textX/scaleX, (y-6)/scaleY, label.c_str());
         SDL_SetRenderScale(renderer, 1, 1);
     }
 
-    // Live-Wert direkt am Marker, immer aktuell
+    // Live-Wert
     std::string liveLabel = std::to_string(static_cast<int>(std::round(value)));
-    float liveX = ticksOnRight ? tickStartX - liveLabel.length()*14 - 20 : tickStartX + 20;
-    SDL_SetRenderScale(renderer, 2.0f, 2.0f);
-    SDL_RenderDebugText(renderer, liveX/2.0f, (center-6)/2.0f, liveLabel.c_str());
-    SDL_SetRenderScale(renderer, 1, 1);
+    float liveX = ticksOnRight ? tickStartX - liveLabel.length()*charW - 20 : tickStartX + 20;
+    //SDL_SetRenderScale(renderer, scaleX, scaleY);
+    //SDL_RenderDebugText(renderer, liveX/scaleX, (center-6)/scaleY, liveLabel.c_str());
+    //SDL_SetRenderScale(renderer, 1, 1);
 
-    // Marker-Dreieck (ortsfest in der Mitte, darf über den Rand ragen)
+    // Marker-Dreieck
     float apexX = ticksOnRight ? rect.x + rect.w : rect.x;
     float baseX = ticksOnRight ? apexX + rect.w*0.3f : apexX - rect.w*0.3f;
     SDL_Vertex tri[] = {
@@ -875,8 +960,7 @@ void renderVerticalTape(const SDL_FRect& rect, float value, float tickStep, bool
     SDL_RenderGeometry(renderer, NULL, tri, 3, NULL, 0);
 }
 
-// Wandelt einen Grad-Wert (Vielfaches von 45) in eine Himmelsrichtung um,
-// alle anderen Werte werden weiterhin als Zahl angezeigt
+//Himmelsrichtungen
 std::string headingLabel(int deg){
     deg = ((deg % 360) + 360) % 360; // auf 0-359 normalisieren
     switch(deg){
@@ -892,7 +976,6 @@ std::string headingLabel(int deg){
     }
 }
 
-// Zeichnet ein horizontales Band mit beweglichen Strichen + Zahlen (für den Kurs)
 void renderHorizontalTape(const SDL_FRect& rect, float value, float tickStep){
     float spacing = rect.w / 6.0f;
     float center  = rect.x + rect.w / 2.0f;
@@ -902,32 +985,38 @@ void renderHorizontalTape(const SDL_FRect& rect, float value, float tickStep){
     float tickTopY = rect.y;
     float tickBotY = tickTopY + tickLen;
 
+    float scaleX = fWidth  / 384.0f;
+    float scaleY = fHeight / 216.0f;
+    float charW  = 8.0f * scaleX;
+
     for (int i = -3; i <= 3; i++) {
         float x = center + i * spacing - offset;
-
-        // Strich/Zahl überspringen, wenn er die Box verlassen würde
         if (x < rect.x || x > rect.x + rect.w) continue;
 
+         // Strich
         SDL_RenderLine(renderer, x, tickTopY, x, tickBotY);
 
         float tickValue = value - fmodf(value, tickStep) + i * tickStep;
         int wrapped = (static_cast<int>(std::round(tickValue)) % 360 + 360) % 360;
-        std::string label = headingLabel(wrapped);
 
-        SDL_SetRenderScale(renderer, 2.0f, 2.0f);
-        SDL_RenderDebugText(renderer, (x - label.length()*7)/2.0f, (tickBotY+4)/2.0f, label.c_str());
-        SDL_SetRenderScale(renderer, 1, 1);
+        // Zahl bei Vielfachen von 45°
+        if (wrapped % 45 == 0) {
+            std::string label = std::to_string(wrapped);
+            SDL_SetRenderScale(renderer, scaleX, scaleY);
+            SDL_RenderDebugText(renderer, (x - label.length()*charW/2.0f)/scaleX, (tickBotY+4)/scaleY, label.c_str());
+            SDL_SetRenderScale(renderer, 1, 1);
+        }
     }
 
-    // Live-Gradzahl direkt über dem Marker, immer aktuell (ungerundet auf tickStep)
+    // Live-Gradzahl
     int liveHeading = (static_cast<int>(std::round(value)) % 360 + 360) % 360;
     std::string liveLabel = std::to_string(liveHeading);
-    float liveY = rect.y - rect.h*0.15f - 20; // etwas oberhalb des Marker-Dreiecks
-    SDL_SetRenderScale(renderer, 2.0f, 2.0f);
-    SDL_RenderDebugText(renderer, (center - liveLabel.length()*7)/2.0f, liveY/2.0f, liveLabel.c_str());
-    SDL_SetRenderScale(renderer, 1, 1);
+    float liveY = rect.y - rect.h*0.15f - 20;
+    //SDL_SetRenderScale(renderer, scaleX, scaleY);
+    //SDL_RenderDebugText(renderer, (center - liveLabel.length()*charW/2.0f)/scaleX, liveY/scaleY, liveLabel.c_str());
+    //SDL_SetRenderScale(renderer, 1, 1);
 
-    // Marker-Dreieck oben in der Mitte, zeigt nach unten
+    // Marker-Dreieck
     SDL_Vertex tri[] = {
         {{center, rect.y}, {255,255,255,255}},
         {{center - rect.w*0.01f, rect.y - rect.h*0.15f}, {255,255,255,255}},
@@ -993,7 +1082,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     }
     SDL_SetRenderVSync(renderer, 1);
 
-    mask = std::make_unique<SDL_Vertex[]>(vertexCount);
     updateMask();
     horizon = std::make_unique<SDL_Vertex[]>(3);
     updateHorizon();
@@ -1021,7 +1109,9 @@ SDL_AppResult SDL_AppIterate(void *appstate){
     updateHorizon();
     SDL_RenderGeometry(renderer, NULL, horizon.get(), 3, NULL, 0);
 
-    SDL_RenderGeometry(renderer, NULL, mask.get(), vertexCount, NULL, 0);
+    renderPitchLadder();
+
+    SDL_RenderGeometry(renderer, NULL, mask.data(), (int)mask.size(), NULL, 0);
     
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     renderDeviders();
