@@ -462,7 +462,7 @@ void renderVerticalTape(const SDL_FRect& rect, float value, float tickStep, bool
 
         float tickValue = value - fmodf(value, tickStep) + i * tickStep;
         if (tickValue < minValue) continue;
-
+        
         SDL_RenderLine(renderer, tickStartX, y, tickEndX, y);
 
         std::string label = std::to_string(static_cast<int>(std::round(tickValue)));
@@ -476,9 +476,9 @@ void renderVerticalTape(const SDL_FRect& rect, float value, float tickStep, bool
     // Live-Wert
     std::string liveLabel = std::to_string(static_cast<int>(std::round(value)));
     float liveX = ticksOnRight ? tickStartX - liveLabel.length()*charW - 20 : tickStartX + 20;
-    SDL_SetRenderScale(renderer, scaleX, scaleY);
-    SDL_RenderDebugText(renderer, liveX/scaleX, (center-6)/scaleY, liveLabel.c_str());
-    SDL_SetRenderScale(renderer, 1, 1);
+    //SDL_SetRenderScale(renderer, scaleX, scaleY);
+    //SDL_RenderDebugText(renderer, liveX/scaleX, (center-6)/scaleY, liveLabel.c_str());
+    //SDL_SetRenderScale(renderer, 1, 1);
 
     // Marker-Dreieck
     float apexX = ticksOnRight ? rect.x + rect.w : rect.x;
@@ -524,24 +524,28 @@ void renderHorizontalTape(const SDL_FRect& rect, float value, float tickStep){
         float x = center + i * spacing - offset;
         if (x < rect.x || x > rect.x + rect.w) continue;
 
+         // Strich
         SDL_RenderLine(renderer, x, tickTopY, x, tickBotY);
 
         float tickValue = value - fmodf(value, tickStep) + i * tickStep;
         int wrapped = (static_cast<int>(std::round(tickValue)) % 360 + 360) % 360;
-        std::string label = headingLabel(wrapped);
 
-        SDL_SetRenderScale(renderer, scaleX, scaleY);
-        SDL_RenderDebugText(renderer, (x - label.length()*charW/2.0f)/scaleX, (tickBotY+4)/scaleY, label.c_str());
-        SDL_SetRenderScale(renderer, 1, 1);
+        // Zahl bei Vielfachen von 45°
+        if (wrapped % 45 == 0) {
+            std::string label = std::to_string(wrapped);
+            SDL_SetRenderScale(renderer, scaleX, scaleY);
+            SDL_RenderDebugText(renderer, (x - label.length()*charW/2.0f)/scaleX, (tickBotY+4)/scaleY, label.c_str());
+            SDL_SetRenderScale(renderer, 1, 1);
+        }
     }
 
     // Live-Gradzahl
     int liveHeading = (static_cast<int>(std::round(value)) % 360 + 360) % 360;
     std::string liveLabel = std::to_string(liveHeading);
     float liveY = rect.y - rect.h*0.15f - 20;
-    SDL_SetRenderScale(renderer, scaleX, scaleY);
-    SDL_RenderDebugText(renderer, (center - liveLabel.length()*charW/2.0f)/scaleX, liveY/scaleY, liveLabel.c_str());
-    SDL_SetRenderScale(renderer, 1, 1);
+    //SDL_SetRenderScale(renderer, scaleX, scaleY);
+    //SDL_RenderDebugText(renderer, (center - liveLabel.length()*charW/2.0f)/scaleX, liveY/scaleY, liveLabel.c_str());
+    //SDL_SetRenderScale(renderer, 1, 1);
 
     // Marker-Dreieck
     SDL_Vertex tri[] = {
