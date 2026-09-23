@@ -46,7 +46,7 @@
 #define CALIBRATION_SAMPLES 200
 #define IMU_INTERVAL_MS 20     // 50Hz, damit der Horizont fluessig laeuft
 
-#define MOUNT_ROTATION 3 //um 180 Grad gedreht um Achse: (0=keine, 1=X, 2=Y, 3=Z)
+#define MOUNT_ROTATION 2 //um 180 Grad gedreht um Achse: (0=keine, 1=X, 2=Y, 3=Z)
 
 
 #define AUTO_LEVEL 1 // Auf 0 setzen, wenn es beim Start nicht waagerecht steht
@@ -58,7 +58,7 @@
 #define HEADING_GYRO_SIGN -1.0f
 #define HEADING_DEADBAND   0.5f  // deg/s, darunter wird der Gyro ignoriert (weniger Drift im Stand)
 
-#define ACCEL_SIGN_X -1.0f // Vorzeichen der Beschleunigungs-X-Achse (vorne/hinten). Falscher Wert = Pitch bewegt sich erst richtig (Gyro) und kriecht dann langsam in die falsche Richtung
+#define ACCEL_SIGN_X 1.0f // Vorzeichen der Beschleunigungs-X-Achse (vorne/hinten). Falscher Wert = Pitch bewegt sich erst richtig (Gyro) und kriecht dann langsam in die falsche Richtung
 
 // Offsets
 #define ROLL_OFFSET  0.0f
@@ -72,6 +72,9 @@
 
 // ---------------- Geschwindigkeitsquelle ----------------
 #define GPS_TIMEOUT_MS 2000 // ohne gueltigen $GPRMC-Fix laenger als das -> IMU als Fallback
+
+
+#define DISPLAY_SWAP_RED_BLUE 1 // Rot und Blau Farbchannel Tauschen? 1=Ja 0=Nein
 
 // Rechnet Sensorachsen in Flugzeugachsen um (X vorne, Z oben)
 void applyMount(float& x, float& y, float& z){
@@ -182,6 +185,22 @@ struct GPSData
 };
 
 static GPSData gps{};
+
+// Alle Farben laufen hierueber, damit der Tausch an einer Stelle sitzt
+void setDrawColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a){
+    if (DISPLAY_SWAP_RED_BLUE){
+        SDL_SetRenderDrawColor(renderer, b, g, r, a);
+    } else {
+        SDL_SetRenderDrawColor(renderer, r, g, b, a);
+    }
+}
+
+SDL_FColor makeColor(float r, float g, float b, float a){
+    if (DISPLAY_SWAP_RED_BLUE){
+        return SDL_FColor{b, g, r, a};
+    }
+    return SDL_FColor{r, g, b, a};
+}
 
 int openSerialPort(const char* name){
     int fileDescriptor;
@@ -798,7 +817,7 @@ void calculateHorizonVertex(int index, float offsetPhi,float offsetR){
     float r= sqrt(pow((aHSize*horizonRadius),2)+pow(offsetR,2)+2*(aHSize*horizonRadius)*offsetR*cos(offsetPhi-hrzRot));
     horizon[index].position.x=r*cos(phi)+fWidth/2;
     horizon[index].position.y=r*sin(phi)+fHeight/2;
-    horizon[index].color= {0.4f, 0.2f, 0.08f, 1.0f};
+    horizon[index].color= makeColor(0.4f, 0.2f, 0.08f, 1.0f);
 }
 
 void updateHorizon(){
@@ -821,7 +840,7 @@ void renderPitchLadder(){
     const int   stepDeg = 10;          // Beschriftungsschritt
     const float gap     = aHSize*0.06f; // Lücke in der Mitte (Platz fürs Flugzeug-Symbol)
 
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
 
     for (int i = -3; i <= 3; i++){
         if (i == 0) continue; // die Horizontlinie selbst ist bereits der "0°"-Strich
@@ -920,6 +939,43 @@ void updateMask(){
 }
 
 
+// Flugzeugsymbol im Airbus-Stil: schwarze Flaechen mit gelbem Rand, fest in der Mitte
+void renderAircraftSymbol(){
+    const float centreX = fWidth  / 2.0f;
+    const float centreY = fHeight / 2.0f;
+
+    const float thickness = std::max(3.0f, aHSize / 24.0f);
+    const float square    = std::max(4.0f, aHSize / 16.0f);
+    const float innerGap  = aHSize / 4.0f;
+    const float barLength = aHSize / 6.0f;
+    const float legLength = aHSize / 12.0f;
+    const float outline   = std::max(1.0f, thickness / 5.0f);
+
+    // gelber Rand, darin schwarze Flaeche
+    auto part = [&] (float x, float y, float w, float h){
+        SDL_FRect border = {x, y, w, h};
+        setDrawColor(255, 220, 0, 255);
+        SDL_RenderFillRect(renderer, &border);
+        SDL_FRect inner = {x + outline, y + outline, w - 2*outline, h - 2*outline};
+        if (inner.w > 0 && inner.h > 0){
+            setDrawColor(0, 0, 0, 255);
+            SDL_RenderFillRect(renderer, &inner);
+        }
+    };
+
+    part(centreX - square/2.0f, centreY - square/2.0f, square, square); // Mitte
+
+    // linker Fluegel: Balken plus Schenkel nach unten am inneren Ende
+    part(centreX - innerGap - barLength, centreY - thickness/2.0f, barLength, thickness);
+    part(centreX - innerGap - thickness,  centreY + thickness/2.0f - outline, thickness, legLength);
+
+    // rechter Fluegel
+    part(centreX + innerGap, centreY - thickness/2.0f, barLength, thickness);
+    part(centreX + innerGap, centreY + thickness/2.0f - outline, thickness, legLength);
+
+    setDrawColor(255, 255, 255, 255);
+}
+
 void renderDeviders(){
     float width=fWidth/5;
     float height=fHeight/10;
@@ -936,7 +992,7 @@ void renderText(){
     SDL_UnlockMutex(dataMutex);
 
     SDL_SetRenderScale(renderer, fWidth/384, fHeight/216);
-    SDL_SetRenderDrawColor(renderer, 44, 255, 5, 255);
+    setDrawColor(44, 255, 5, 255);
 
     std::string speedStr = std::to_string(static_cast<int>(std::round(speed)));
     SDL_RenderDebugText(renderer, 38.4 -speedStr.length()*3.5, 4, speedStr.c_str());
@@ -949,10 +1005,10 @@ void renderText(){
         sourceStr = "GPS";
     } else if (speedSource == SpeedSource::IMU){
         sourceStr = "IMU";
-        SDL_SetRenderDrawColor(renderer, 255, 200, 0, 255);
+        setDrawColor(255, 200, 0, 255);
     }
     SDL_RenderDebugText(renderer, 115.2-strlen(sourceStr)*3.5, 14, sourceStr);
-    SDL_SetRenderDrawColor(renderer, 44, 255, 5, 255);
+    setDrawColor(44, 255, 5, 255);
     
   //SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
   //SDL_RenderDebugText(renderer, 192-strlen(t.date.c_str())*3.5,       4, t.date.c_str());
@@ -968,7 +1024,7 @@ void renderText(){
   //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
     if (localDate.length() == 10) localDate.erase(6, 2);               // "DD.MM.YYYY" -> "DD.MM.YY"
     SDL_RenderDebugText(renderer, 345.6-localDate.length()*3.5,     4, localDate.c_str());
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
 }
 
@@ -1088,7 +1144,7 @@ void renderHorizontalTape(const SDL_FRect& rect, float value, float tickStep){
 }
 
 void renderIndicators(){
-    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+    setDrawColor(100, 100, 100, 255);
     float barHeight= fHeight/1.65;
     SDL_FRect re1 = {fWidth/8,             fHeight/2-barHeight/2,   fWidth/12,  barHeight};
     SDL_FRect re2 = {19*fWidth/24, fHeight/2-barHeight/2,   fWidth/12,  barHeight};
@@ -1097,7 +1153,7 @@ void renderIndicators(){
     SDL_RenderFillRect( renderer, &re2);
     SDL_RenderFillRect( renderer, &re3);
 
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
     renderVerticalTape(re1, speed, 10.0f, true, 0.0f, true);
     renderVerticalTape(re2, (float)altitude, 100.0f, false, -1e9f, true);
     renderHorizontalTape(re3, heading, 15.0f);
@@ -1111,11 +1167,11 @@ void renderImuDebug(){
 
     const float scale = 2.0f;
     SDL_FRect bg = {0.0f, fHeight/10 + 5, 560.0f, 125.0f};
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    setDrawColor(0, 0, 0, 255);
     SDL_RenderFillRect(renderer, &bg);
 
     SDL_SetRenderScale(renderer, scale, scale);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+    setDrawColor(255, 255, 0, 255);
     float x = 5.0f, y = (fHeight/10 + 10) / scale;
     if (!d.valid){
         SDL_RenderDebugText(renderer, x, y, "IMU: keine Daten");
@@ -1127,7 +1183,7 @@ void renderImuDebug(){
         SDL_RenderDebugTextFormat(renderer, x, y+40,   "Einbau Roll:%6.1f Pitch:%6.1f", mountTiltRoll, mountTiltPitch);
     }
     SDL_SetRenderScale(renderer, 1, 1);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
@@ -1166,7 +1222,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 SDL_AppResult SDL_AppIterate(void *appstate){
     updateFromSensors();
 
-    SDL_SetRenderDrawColor(renderer, 3, 169, 244, 255);
+    setDrawColor(3, 169, 244, 255);
     SDL_RenderClear(renderer);
     updateHorizon();
     SDL_RenderGeometry(renderer, NULL, horizon.get(), 3, NULL, 0);
@@ -1174,8 +1230,9 @@ SDL_AppResult SDL_AppIterate(void *appstate){
     renderPitchLadder();
 
     SDL_RenderGeometry(renderer, NULL, mask.data(), (int)mask.size(), NULL, 0);
+    renderAircraftSymbol();
     
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
     renderDeviders();
     renderText();
     renderIndicators();
