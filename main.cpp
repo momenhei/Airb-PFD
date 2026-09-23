@@ -149,6 +149,10 @@ static std::string gpsText = "Warte auf GPS";
 static float gpsSpeed = 0.0f;       // km/h, nur gueltig wenn gpsSpeedTicks aktuell
 static Uint64 gpsSpeedTicks = 0;    // SDL_GetTicks() des letzten gueltigen Fixes
 static bool gpsSpeedReceived = false;
+static int gpsFixQuality = 0;       // $GPGGA Feld 6: 0 = kein Fix, 1 = GPS, 2 = DGPS
+static int gpsSatellites = 0;       // benutzte Satelliten
+static float gpsHdop = 0.0f;        // horizontale Genauigkeit, kleiner ist besser
+static Uint64 gpsGgaTicks = 0;      // SDL_GetTicks() der letzten $GPGGA-Zeile
 static float gpsHeading = 0.0f;     // deg, Kurs ueber Grund aus $GPRMC
 static Uint64 gpsHeadingTicks = 0;  // SDL_GetTicks() des letzten gueltigen Kurses
 static bool gpsHeadingReceived = false;
@@ -739,7 +743,17 @@ void parseGGA(const std::string& line){
         start = pos + 1;
     }
     if (count < 11) return;
-    if (fields[6].empty() || fields[6] == "0") return; // kein Fix -> Zeitstempel veraltet
+
+    try{ // Empfangsqualitaet, wird auch ohne Fix angezeigt
+        gpsFixQuality = fields[6].empty() ? 0 : std::stoi(fields[6]);
+        gpsSatellites = fields[7].empty() ? 0 : std::stoi(fields[7]);
+        gpsHdop       = fields[8].empty() ? 0.0f : std::stof(fields[8]);
+        gpsGgaTicks   = SDL_GetTicks();
+    }catch (const std::exception& e) {
+        // ungueltige Felder -> ignorieren
+    }
+
+    if (gpsFixQuality == 0) return; // kein Fix -> Hoehe nicht uebernehmen
     if (fields[9].empty()) return;
     try{
         gpsAltitude = std::stof(fields[9]);
@@ -974,7 +988,7 @@ void renderAircraftSymbol(){
     const float square    = std::max(4.0f, aHSize / 16.0f);
     const float innerGap  = aHSize / 4.0f;
     const float barLength = aHSize / 6.0f;
-    const float legLength = aHSize / 12.0f;
+    const float legLength = aHSize / 12.0f
     const float outline   = std::max(1.0f, thickness / 5.0f);
 
     // gelber Rand, darin schwarze Flaeche
@@ -1015,6 +1029,10 @@ void renderText(){
     std::string localTime    = gps.localTime;
     std::string localWeekday = gps.localWeekday;
     std::string localDate    = gps.localDate;
+    int fixQuality = gpsFixQuality;
+    int satellites = gpsSatellites;
+    float hdop     = gpsHdop;
+    bool ggaFresh  = gpsGgaTicks != 0 && (SDL_GetTicks() - gpsGgaTicks) < 5000;
     SDL_UnlockMutex(dataMutex);
 
     SDL_SetRenderScale(renderer, fWidth/384, fHeight/216);
@@ -1024,7 +1042,6 @@ void renderText(){
     SDL_RenderDebugText(renderer, 38.4 -speedStr.length()*3.5, 4, speedStr.c_str());
     SDL_RenderDebugText(renderer, 38.4-strlen("km/h")*3.5,    14, "km/h");
 
-    SDL_RenderDebugText(renderer, 115.2-strlen("G/S")*3.5,     4, "G/S");
     // Quelle der Geschwindigkeit anzeigen, IMU-Fallback in Gelb
     const char* sourceStr = "---";
     if (speedSource == SpeedSource::GPS){
@@ -1033,7 +1050,7 @@ void renderText(){
         sourceStr = "IMU";
         setDrawColor(255, 200, 0, 255);
     }
-    SDL_RenderDebugText(renderer, 115.2-strlen(sourceStr)*3.5, 14, sourceStr);
+    SDL_RenderDebugText(renderer, 115.2-strlen(sourceStr)*3.5,  4, sourceStr);
     setDrawColor(44, 255, 5, 255);
     
   //SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
@@ -1050,6 +1067,26 @@ void renderText(){
   //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
     if (localDate.length() == 10) localDate.erase(6, 2);               // "DD.MM.YYYY" -> "DD.MM.YY"
     SDL_RenderDebugText(renderer, 345.6-localDate.length()*3.5,     4, localDate.c_str());
+
+    // Empfangsqualitaet unten links (dort sitzt im Original die ILS-Anzeige)
+    char gpsLine1[24] = "GPS";
+    char gpsLine2[24] = "";
+    char gpsLine3[24] = "";
+    if (!ggaFresh){
+        SDL_strlcpy(gpsLine2, "KEIN", sizeof(gpsLine2));
+        SDL_strlcpy(gpsLine3, "EMPFANG", sizeof(gpsLine3));
+    } else if (fixQuality == 0){
+        SDL_strlcpy(gpsLine2, "KEIN FIX", sizeof(gpsLine2));
+        std::snprintf(gpsLine3, sizeof(gpsLine3), "SAT %d", satellites);
+    } else {
+        std::snprintf(gpsLine1, sizeof(gpsLine1), "GPS %s", fixQuality >= 2 ? "DGPS" : "FIX");
+        std::snprintf(gpsLine2, sizeof(gpsLine2), "SAT %d", satellites);
+        std::snprintf(gpsLine3, sizeof(gpsLine3), "HDOP %.1f", hdop);
+    }
+    setDrawColor(200, 80, 255, 255); // violett wie die ILS-Anzeige
+    SDL_RenderDebugText(renderer, 4, 180, gpsLine1);
+    SDL_RenderDebugText(renderer, 4, 190, gpsLine2);
+    SDL_RenderDebugText(renderer, 4, 200, gpsLine3);
     setDrawColor(255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
 }
