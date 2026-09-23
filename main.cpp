@@ -988,7 +988,7 @@ void renderAircraftSymbol(){
     const float square    = std::max(4.0f, aHSize / 16.0f);
     const float innerGap  = aHSize / 4.0f;
     const float barLength = aHSize / 6.0f;
-    const float legLength = aHSize / 12.0f
+    const float legLength = aHSize / 12.0f;
     const float outline   = std::max(1.0f, thickness / 5.0f);
 
     // gelber Rand, darin schwarze Flaeche
