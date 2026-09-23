@@ -21,7 +21,7 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 
-#define VERSION "1.0"
+#define VERSION "1.1"
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 
@@ -46,7 +46,7 @@
 #define CALIBRATION_SAMPLES 200
 #define IMU_INTERVAL_MS 20     // 50Hz, damit der Horizont fluessig laeuft
 
-#define MOUNT_ROTATION 3 //um 180 Grad gedreht um Achse: (0=keine, 1=X, 2=Y, 3=Z)
+#define MOUNT_ROTATION 2 //um 180 Grad gedreht um Achse: (0=keine, 1=X, 2=Y, 3=Z)
 
 
 #define AUTO_LEVEL 1 // Auf 0 setzen, wenn es beim Start nicht waagerecht steht
@@ -56,9 +56,10 @@
 // Heading aus dem Gyro (Z = Hochachse). Nur Simulation, driftet mit der Zeit.
 // Rechtskurve muss den Wert erhoehen; wenn das Band falsch herum laeuft: Vorzeichen umdrehen
 #define HEADING_GYRO_SIGN -1.0f
+#define HEADING_MIN_SPEED  3.0f  // km/h, darunter ist der GPS-Kurs nur Rauschen
 #define HEADING_DEADBAND   0.5f  // deg/s, darunter wird der Gyro ignoriert (weniger Drift im Stand)
 
-#define ACCEL_SIGN_X -1.0f // Vorzeichen der Beschleunigungs-X-Achse (vorne/hinten). Falscher Wert = Pitch bewegt sich erst richtig (Gyro) und kriecht dann langsam in die falsche Richtung
+#define ACCEL_SIGN_X 1.0f // Vorzeichen der Beschleunigungs-X-Achse (vorne/hinten). Falscher Wert = Pitch bewegt sich erst richtig (Gyro) und kriecht dann langsam in die falsche Richtung
 
 // Offsets
 #define ROLL_OFFSET  0.0f
@@ -72,6 +73,9 @@
 
 // ---------------- Geschwindigkeitsquelle ----------------
 #define GPS_TIMEOUT_MS 2000 // ohne gueltigen $GPRMC-Fix laenger als das -> IMU als Fallback
+
+
+#define DISPLAY_SWAP_RED_BLUE 1 // Rot und Blau Farbchannel Tauschen? 1=Ja 0=Nein
 
 // Rechnet Sensorachsen in Flugzeugachsen um (X vorne, Z oben)
 void applyMount(float& x, float& y, float& z){
@@ -145,6 +149,13 @@ static std::string gpsText = "Warte auf GPS";
 static float gpsSpeed = 0.0f;       // km/h, nur gueltig wenn gpsSpeedTicks aktuell
 static Uint64 gpsSpeedTicks = 0;    // SDL_GetTicks() des letzten gueltigen Fixes
 static bool gpsSpeedReceived = false;
+static int gpsFixQuality = 0;       // $GPGGA Feld 6: 0 = kein Fix, 1 = GPS, 2 = DGPS
+static int gpsSatellites = 0;       // benutzte Satelliten
+static float gpsHdop = 0.0f;        // horizontale Genauigkeit, kleiner ist besser
+static Uint64 gpsGgaTicks = 0;      // SDL_GetTicks() der letzten $GPGGA-Zeile
+static float gpsHeading = 0.0f;     // deg, Kurs ueber Grund aus $GPRMC
+static Uint64 gpsHeadingTicks = 0;  // SDL_GetTicks() des letzten gueltigen Kurses
+static bool gpsHeadingReceived = false;
 static float gpsAltitude = 0.0f;    // m ueber Meeresspiegel aus $GPGGA
 static Uint64 gpsAltitudeTicks = 0; // SDL_GetTicks() der letzten gueltigen Hoehe
 static bool gpsAltitudeReceived = false;
@@ -182,6 +193,22 @@ struct GPSData
 };
 
 static GPSData gps{};
+
+// Alle Farben laufen hierueber, damit der Tausch an einer Stelle sitzt
+void setDrawColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a){
+    if (DISPLAY_SWAP_RED_BLUE){
+        SDL_SetRenderDrawColor(renderer, b, g, r, a);
+    } else {
+        SDL_SetRenderDrawColor(renderer, r, g, b, a);
+    }
+}
+
+SDL_FColor makeColor(float r, float g, float b, float a){
+    if (DISPLAY_SWAP_RED_BLUE){
+        return SDL_FColor{b, g, r, a};
+    }
+    return SDL_FColor{r, g, b, a};
+}
 
 int openSerialPort(const char* name){
     int fileDescriptor;
@@ -461,8 +488,12 @@ Uint32 updateImu(void* userdata, SDL_TimerID timerID, Uint32 interval){
     data.velocityForward = imuVelocityForward;
     data.velocityRight = imuVelocityRight;
     data.speed = sqrtf(imuVelocityForward*imuVelocityForward + imuVelocityRight*imuVelocityRight);
-    // Heading: Drehrate um die Hochachse aufintegrieren
-    float yawRate = HEADING_GYRO_SIGN * data.gyroZ;
+    // Heading: Drehrate um die Lotrechte
+    float cosPitchYaw = cosPitch;
+    if (fabsf(cosPitchYaw) < 0.2f){ // steile Lage: Kurs nicht mehr sinnvoll bestimmbar
+        cosPitchYaw = (cosPitchYaw < 0.0f) ? -0.2f : 0.2f;
+    }
+    float yawRate = HEADING_GYRO_SIGN * (data.gyroY * sinRoll + data.gyroZ * cosRoll) / cosPitchYaw;
     if (fabsf(yawRate) < HEADING_DEADBAND) yawRate = 0.0f;
     imuHeading = fmodf(imuHeading + yawRate * dt, 360.0f);
     if (imuHeading < 0.0f) imuHeading += 360.0f;
@@ -668,6 +699,16 @@ void filterData(){
                 }
                 break;
             case 8:  //Track made good, degrees True
+                try{
+                    if (gpsSpeed >= HEADING_MIN_SPEED){ // im Stand liefert das GPS keinen brauchbaren Kurs
+                        gpsHeading = std::stof(field);
+                        gpsHeadingTicks = SDL_GetTicks();
+                        gpsHeadingReceived = true;
+                        imuHeading = gpsHeading; // Gyro-Kurs nachfuehren, damit der Fallback passt
+                    }
+                }catch (const std::exception& e) {
+                    // leeres oder ungueltiges Feld -> Zeitstempel nicht erneuern
+                }
                 
                 break;
             case 9:  //Date: dd/mm/yy
@@ -702,7 +743,17 @@ void parseGGA(const std::string& line){
         start = pos + 1;
     }
     if (count < 11) return;
-    if (fields[6].empty() || fields[6] == "0") return; // kein Fix -> Zeitstempel veraltet
+
+    try{ // Empfangsqualitaet, wird auch ohne Fix angezeigt
+        gpsFixQuality = fields[6].empty() ? 0 : std::stoi(fields[6]);
+        gpsSatellites = fields[7].empty() ? 0 : std::stoi(fields[7]);
+        gpsHdop       = fields[8].empty() ? 0.0f : std::stof(fields[8]);
+        gpsGgaTicks   = SDL_GetTicks();
+    }catch (const std::exception& e) {
+        // ungueltige Felder -> ignorieren
+    }
+
+    if (gpsFixQuality == 0) return; // kein Fix -> Hoehe nicht uebernehmen
     if (fields[9].empty()) return;
     try{
         gpsAltitude = std::stof(fields[9]);
@@ -755,6 +806,8 @@ void updateFromSensors(){
     ImuData imu = imuData;
     bool gpsOk = gpsSpeedReceived && (SDL_GetTicks() - gpsSpeedTicks) < GPS_TIMEOUT_MS;
     float gpsKmH = gpsSpeed;
+    bool gpsHeadingOk = gpsHeadingReceived && (SDL_GetTicks() - gpsHeadingTicks) < GPS_TIMEOUT_MS;
+    float gpsCourse = gpsHeading;
     bool gpsAltOk = gpsAltitudeReceived && (SDL_GetTicks() - gpsAltitudeTicks) < GPS_TIMEOUT_MS;
     float gpsAltM = gpsAltitude;
     SDL_UnlockMutex(dataMutex);
@@ -765,7 +818,13 @@ void updateFromSensors(){
         float radius = HORIZON_PITCH_SIGN * imu.pitch / HORIZON_DEG_PER_UNIT + horizonRadiusTrim;
         horizonRadius = std::clamp(radius, -HORIZON_RADIUS_LIMIT, HORIZON_RADIUS_LIMIT);
 
-        // Heading aus dem Gyro + manuelle Korrektur
+    }
+
+    // Kurs: GPS bevorzugt, sonst der aus dem Gyro integrierte Wert
+    if (gpsHeadingOk){
+        heading = fmodf(gpsCourse + headingTrim, 360.0f);
+        if (heading < 0.0f) heading += 360.0f;
+    } else if (imu.valid){
         heading = fmodf(imu.heading + headingTrim, 360.0f);
         if (heading < 0.0f) heading += 360.0f;
     }
@@ -798,7 +857,7 @@ void calculateHorizonVertex(int index, float offsetPhi,float offsetR){
     float r= sqrt(pow((aHSize*horizonRadius),2)+pow(offsetR,2)+2*(aHSize*horizonRadius)*offsetR*cos(offsetPhi-hrzRot));
     horizon[index].position.x=r*cos(phi)+fWidth/2;
     horizon[index].position.y=r*sin(phi)+fHeight/2;
-    horizon[index].color= {0.4f, 0.2f, 0.08f, 1.0f};
+    horizon[index].color= makeColor(0.4f, 0.2f, 0.08f, 1.0f);
 }
 
 void updateHorizon(){
@@ -821,7 +880,7 @@ void renderPitchLadder(){
     const int   stepDeg = 10;          // Beschriftungsschritt
     const float gap     = aHSize*0.06f; // Lücke in der Mitte (Platz fürs Flugzeug-Symbol)
 
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
 
     for (int i = -3; i <= 3; i++){
         if (i == 0) continue; // die Horizontlinie selbst ist bereits der "0°"-Strich
@@ -920,6 +979,43 @@ void updateMask(){
 }
 
 
+// Flugzeugsymbol im Airbus-Stil: schwarze Flaechen mit gelbem Rand, fest in der Mitte
+void renderAircraftSymbol(){
+    const float centreX = fWidth  / 2.0f;
+    const float centreY = fHeight / 2.0f;
+
+    const float thickness = std::max(3.0f, aHSize / 24.0f);
+    const float square    = std::max(4.0f, aHSize / 16.0f);
+    const float innerGap  = aHSize / 4.0f;
+    const float barLength = aHSize / 6.0f;
+    const float legLength = aHSize / 12.0f
+    const float outline   = std::max(1.0f, thickness / 5.0f);
+
+    // gelber Rand, darin schwarze Flaeche
+    auto part = [&] (float x, float y, float w, float h){
+        SDL_FRect border = {x, y, w, h};
+        setDrawColor(255, 220, 0, 255);
+        SDL_RenderFillRect(renderer, &border);
+        SDL_FRect inner = {x + outline, y + outline, w - 2*outline, h - 2*outline};
+        if (inner.w > 0 && inner.h > 0){
+            setDrawColor(0, 0, 0, 255);
+            SDL_RenderFillRect(renderer, &inner);
+        }
+    };
+
+    part(centreX - square/2.0f, centreY - square/2.0f, square, square); // Mitte
+
+    // linker Fluegel: Balken plus Schenkel nach unten am inneren Ende
+    part(centreX - innerGap - barLength, centreY - thickness/2.0f, barLength, thickness);
+    part(centreX - innerGap - thickness,  centreY + thickness/2.0f - outline, thickness, legLength);
+
+    // rechter Fluegel
+    part(centreX + innerGap, centreY - thickness/2.0f, barLength, thickness);
+    part(centreX + innerGap, centreY + thickness/2.0f - outline, thickness, legLength);
+
+    setDrawColor(255, 255, 255, 255);
+}
+
 void renderDeviders(){
     float width=fWidth/5;
     float height=fHeight/10;
@@ -933,26 +1029,29 @@ void renderText(){
     std::string localTime    = gps.localTime;
     std::string localWeekday = gps.localWeekday;
     std::string localDate    = gps.localDate;
+    int fixQuality = gpsFixQuality;
+    int satellites = gpsSatellites;
+    float hdop     = gpsHdop;
+    bool ggaFresh  = gpsGgaTicks != 0 && (SDL_GetTicks() - gpsGgaTicks) < 5000;
     SDL_UnlockMutex(dataMutex);
 
     SDL_SetRenderScale(renderer, fWidth/384, fHeight/216);
-    SDL_SetRenderDrawColor(renderer, 44, 255, 5, 255);
+    setDrawColor(44, 255, 5, 255);
 
     std::string speedStr = std::to_string(static_cast<int>(std::round(speed)));
     SDL_RenderDebugText(renderer, 38.4 -speedStr.length()*3.5, 4, speedStr.c_str());
     SDL_RenderDebugText(renderer, 38.4-strlen("km/h")*3.5,    14, "km/h");
 
-    SDL_RenderDebugText(renderer, 115.2-strlen("G/S")*3.5,     4, "G/S");
     // Quelle der Geschwindigkeit anzeigen, IMU-Fallback in Gelb
     const char* sourceStr = "---";
     if (speedSource == SpeedSource::GPS){
         sourceStr = "GPS";
     } else if (speedSource == SpeedSource::IMU){
         sourceStr = "IMU";
-        SDL_SetRenderDrawColor(renderer, 255, 200, 0, 255);
+        setDrawColor(255, 200, 0, 255);
     }
-    SDL_RenderDebugText(renderer, 115.2-strlen(sourceStr)*3.5, 14, sourceStr);
-    SDL_SetRenderDrawColor(renderer, 44, 255, 5, 255);
+    SDL_RenderDebugText(renderer, 115.2-strlen(sourceStr)*3.5,  4, sourceStr);
+    setDrawColor(44, 255, 5, 255);
     
   //SDL_RenderDebugText(renderer, 192-strlen("LOC")*3.5,       4, "LOC");
   //SDL_RenderDebugText(renderer, 192-strlen(t.date.c_str())*3.5,       4, t.date.c_str());
@@ -968,7 +1067,27 @@ void renderText(){
   //SDL_RenderDebugText(renderer, 345.6-strlen("FD1")*3.5,    14, "FD1");
     if (localDate.length() == 10) localDate.erase(6, 2);               // "DD.MM.YYYY" -> "DD.MM.YY"
     SDL_RenderDebugText(renderer, 345.6-localDate.length()*3.5,     4, localDate.c_str());
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+    // Empfangsqualitaet unten links (dort sitzt im Original die ILS-Anzeige)
+    char gpsLine1[24] = "GPS";
+    char gpsLine2[24] = "";
+    char gpsLine3[24] = "";
+    if (!ggaFresh){
+        SDL_strlcpy(gpsLine2, "KEIN", sizeof(gpsLine2));
+        SDL_strlcpy(gpsLine3, "EMPFANG", sizeof(gpsLine3));
+    } else if (fixQuality == 0){
+        SDL_strlcpy(gpsLine2, "KEIN FIX", sizeof(gpsLine2));
+        std::snprintf(gpsLine3, sizeof(gpsLine3), "SAT %d", satellites);
+    } else {
+        std::snprintf(gpsLine1, sizeof(gpsLine1), "GPS %s", fixQuality >= 2 ? "DGPS" : "FIX");
+        std::snprintf(gpsLine2, sizeof(gpsLine2), "SAT %d", satellites);
+        std::snprintf(gpsLine3, sizeof(gpsLine3), "HDOP %.1f", hdop);
+    }
+    setDrawColor(200, 80, 255, 255); // violett wie die ILS-Anzeige
+    SDL_RenderDebugText(renderer, 4, 180, gpsLine1);
+    SDL_RenderDebugText(renderer, 4, 190, gpsLine2);
+    SDL_RenderDebugText(renderer, 4, 200, gpsLine3);
+    setDrawColor(255, 255, 255, 255);
     SDL_SetRenderScale(renderer, 1, 1);
 }
 
@@ -1088,7 +1207,7 @@ void renderHorizontalTape(const SDL_FRect& rect, float value, float tickStep){
 }
 
 void renderIndicators(){
-    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255);
+    setDrawColor(100, 100, 100, 255);
     float barHeight= fHeight/1.65;
     SDL_FRect re1 = {fWidth/8,             fHeight/2-barHeight/2,   fWidth/12,  barHeight};
     SDL_FRect re2 = {19*fWidth/24, fHeight/2-barHeight/2,   fWidth/12,  barHeight};
@@ -1097,7 +1216,7 @@ void renderIndicators(){
     SDL_RenderFillRect( renderer, &re2);
     SDL_RenderFillRect( renderer, &re3);
 
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
     renderVerticalTape(re1, speed, 10.0f, true, 0.0f, true);
     renderVerticalTape(re2, (float)altitude, 100.0f, false, -1e9f, true);
     renderHorizontalTape(re3, heading, 15.0f);
@@ -1111,11 +1230,11 @@ void renderImuDebug(){
 
     const float scale = 2.0f;
     SDL_FRect bg = {0.0f, fHeight/10 + 5, 560.0f, 125.0f};
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+    setDrawColor(0, 0, 0, 255);
     SDL_RenderFillRect(renderer, &bg);
 
     SDL_SetRenderScale(renderer, scale, scale);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+    setDrawColor(255, 255, 0, 255);
     float x = 5.0f, y = (fHeight/10 + 10) / scale;
     if (!d.valid){
         SDL_RenderDebugText(renderer, x, y, "IMU: keine Daten");
@@ -1127,7 +1246,7 @@ void renderImuDebug(){
         SDL_RenderDebugTextFormat(renderer, x, y+40,   "Einbau Roll:%6.1f Pitch:%6.1f", mountTiltRoll, mountTiltPitch);
     }
     SDL_SetRenderScale(renderer, 1, 1);
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
 }
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
@@ -1166,7 +1285,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 SDL_AppResult SDL_AppIterate(void *appstate){
     updateFromSensors();
 
-    SDL_SetRenderDrawColor(renderer, 3, 169, 244, 255);
+    setDrawColor(3, 169, 244, 255);
     SDL_RenderClear(renderer);
     updateHorizon();
     SDL_RenderGeometry(renderer, NULL, horizon.get(), 3, NULL, 0);
@@ -1174,8 +1293,9 @@ SDL_AppResult SDL_AppIterate(void *appstate){
     renderPitchLadder();
 
     SDL_RenderGeometry(renderer, NULL, mask.data(), (int)mask.size(), NULL, 0);
+    renderAircraftSymbol();
     
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    setDrawColor(255, 255, 255, 255);
     renderDeviders();
     renderText();
     renderIndicators();
