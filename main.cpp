@@ -21,7 +21,7 @@
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
 
-#define VERSION "1.0"
+#define VERSION "1.1"
 #define WINDOW_WIDTH 1920
 #define WINDOW_HEIGHT 1080
 
@@ -56,6 +56,7 @@
 // Heading aus dem Gyro (Z = Hochachse). Nur Simulation, driftet mit der Zeit.
 // Rechtskurve muss den Wert erhoehen; wenn das Band falsch herum laeuft: Vorzeichen umdrehen
 #define HEADING_GYRO_SIGN -1.0f
+#define HEADING_MIN_SPEED  3.0f  // km/h, darunter ist der GPS-Kurs nur Rauschen
 #define HEADING_DEADBAND   0.5f  // deg/s, darunter wird der Gyro ignoriert (weniger Drift im Stand)
 
 #define ACCEL_SIGN_X 1.0f // Vorzeichen der Beschleunigungs-X-Achse (vorne/hinten). Falscher Wert = Pitch bewegt sich erst richtig (Gyro) und kriecht dann langsam in die falsche Richtung
@@ -148,6 +149,9 @@ static std::string gpsText = "Warte auf GPS";
 static float gpsSpeed = 0.0f;       // km/h, nur gueltig wenn gpsSpeedTicks aktuell
 static Uint64 gpsSpeedTicks = 0;    // SDL_GetTicks() des letzten gueltigen Fixes
 static bool gpsSpeedReceived = false;
+static float gpsHeading = 0.0f;     // deg, Kurs ueber Grund aus $GPRMC
+static Uint64 gpsHeadingTicks = 0;  // SDL_GetTicks() des letzten gueltigen Kurses
+static bool gpsHeadingReceived = false;
 static float gpsAltitude = 0.0f;    // m ueber Meeresspiegel aus $GPGGA
 static Uint64 gpsAltitudeTicks = 0; // SDL_GetTicks() der letzten gueltigen Hoehe
 static bool gpsAltitudeReceived = false;
@@ -480,8 +484,12 @@ Uint32 updateImu(void* userdata, SDL_TimerID timerID, Uint32 interval){
     data.velocityForward = imuVelocityForward;
     data.velocityRight = imuVelocityRight;
     data.speed = sqrtf(imuVelocityForward*imuVelocityForward + imuVelocityRight*imuVelocityRight);
-    // Heading: Drehrate um die Hochachse aufintegrieren
-    float yawRate = HEADING_GYRO_SIGN * data.gyroZ;
+    // Heading: Drehrate um die Lotrechte
+    float cosPitchYaw = cosPitch;
+    if (fabsf(cosPitchYaw) < 0.2f){ // steile Lage: Kurs nicht mehr sinnvoll bestimmbar
+        cosPitchYaw = (cosPitchYaw < 0.0f) ? -0.2f : 0.2f;
+    }
+    float yawRate = HEADING_GYRO_SIGN * (data.gyroY * sinRoll + data.gyroZ * cosRoll) / cosPitchYaw;
     if (fabsf(yawRate) < HEADING_DEADBAND) yawRate = 0.0f;
     imuHeading = fmodf(imuHeading + yawRate * dt, 360.0f);
     if (imuHeading < 0.0f) imuHeading += 360.0f;
@@ -687,6 +695,16 @@ void filterData(){
                 }
                 break;
             case 8:  //Track made good, degrees True
+                try{
+                    if (gpsSpeed >= HEADING_MIN_SPEED){ // im Stand liefert das GPS keinen brauchbaren Kurs
+                        gpsHeading = std::stof(field);
+                        gpsHeadingTicks = SDL_GetTicks();
+                        gpsHeadingReceived = true;
+                        imuHeading = gpsHeading; // Gyro-Kurs nachfuehren, damit der Fallback passt
+                    }
+                }catch (const std::exception& e) {
+                    // leeres oder ungueltiges Feld -> Zeitstempel nicht erneuern
+                }
                 
                 break;
             case 9:  //Date: dd/mm/yy
@@ -774,6 +792,8 @@ void updateFromSensors(){
     ImuData imu = imuData;
     bool gpsOk = gpsSpeedReceived && (SDL_GetTicks() - gpsSpeedTicks) < GPS_TIMEOUT_MS;
     float gpsKmH = gpsSpeed;
+    bool gpsHeadingOk = gpsHeadingReceived && (SDL_GetTicks() - gpsHeadingTicks) < GPS_TIMEOUT_MS;
+    float gpsCourse = gpsHeading;
     bool gpsAltOk = gpsAltitudeReceived && (SDL_GetTicks() - gpsAltitudeTicks) < GPS_TIMEOUT_MS;
     float gpsAltM = gpsAltitude;
     SDL_UnlockMutex(dataMutex);
@@ -784,7 +804,13 @@ void updateFromSensors(){
         float radius = HORIZON_PITCH_SIGN * imu.pitch / HORIZON_DEG_PER_UNIT + horizonRadiusTrim;
         horizonRadius = std::clamp(radius, -HORIZON_RADIUS_LIMIT, HORIZON_RADIUS_LIMIT);
 
-        // Heading aus dem Gyro + manuelle Korrektur
+    }
+
+    // Kurs: GPS bevorzugt, sonst der aus dem Gyro integrierte Wert
+    if (gpsHeadingOk){
+        heading = fmodf(gpsCourse + headingTrim, 360.0f);
+        if (heading < 0.0f) heading += 360.0f;
+    } else if (imu.valid){
         heading = fmodf(imu.heading + headingTrim, 360.0f);
         if (heading < 0.0f) heading += 360.0f;
     }
